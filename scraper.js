@@ -714,47 +714,48 @@ async function scrapeMexc() {
 }
 
 async function scrapeHtx() {
-  // HTX support page is Nuxt.js SSR — no Puppeteer needed
-  console.log('Scraping HTX Announcements (SSR)...');
+  // HTX Cloudflare blocks plain HTTP from cloud IPs — use Puppeteer stealth
+  console.log('Scraping HTX Announcements (Puppeteer stealth)...');
   const url = 'https://www.htx.com/zh-cn/support/';
   const importantKeywords = ['上线', '下线', '下架', '暂停', '维护', '新币', 'Listing', 'Delist', 'Suspend', 'Maintenance'];
+  let browser;
   try {
-    const { data } = await axios.get(url, {
-      headers: {
-        'User-Agent': USER_AGENT,
-        'Accept-Language': 'zh-CN,zh;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-      },
-      timeout: 20000
-    });
-    const $ = cheerio.load(data);
-    const items = [];
+    browser = await launchStealth();
+    const page = await browser.newPage();
+    await page.setUserAgent(USER_AGENT);
+    await page.setViewport({ width: 1280, height: 900 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+    await new Promise(r => setTimeout(r, 5000));
 
-    $('a[href]').each((i, el) => {
-      const href = $(el).attr('href') || '';
-      const title = $(el).text().trim();
-      if (!title || title.length < 5) return;
-      // HTX article URLs: /zh-cn/support/<15+ digit numeric ID>
-      if (!href.match(/\/zh-cn\/support\/\d{10,}/)) return;
-      const fullUrl = href.startsWith('http') ? href : `https://www.htx.com${href}`;
-      if (items.find(item => item.url === fullUrl)) return;
-
-      items.push({
-        title: title.substring(0, 200),
-        content: '',
-        source: 'HTX',
-        url: fullUrl,
-        category: 'Announcement',
-        timestamp: Date.now() - (items.length * 1000 * 60 * 30),
-        is_important: importantKeywords.some(k => title.includes(k)) ? 1 : 0
+    const items = await page.evaluate((kws) => {
+      const results = [];
+      document.querySelectorAll('a[href]').forEach(el => {
+        const href = el.href;
+        const title = (el.innerText || el.textContent || '').trim();
+        if (!title || title.length < 5) return;
+        if (!href.match(/\/zh-cn\/support\/\d{10,}/)) return;
+        if (!results.find(r => r.url === href)) {
+          results.push({
+            title: title.split('\n')[0].trim().substring(0, 200),
+            content: '',
+            source: 'HTX',
+            url: href,
+            category: 'Announcement',
+            timestamp: Date.now() - (results.length * 1000 * 60 * 30),
+            is_important: kws.some(k => title.includes(k)) ? 1 : 0
+          });
+        }
       });
-    });
+      return results;
+    }, importantKeywords);
 
     console.log(`HTX: Found ${items.length} items`);
     return items;
   } catch (err) {
     console.error('HTX error:', err.message);
     return [];
+  } finally {
+    if (browser) await browser.close();
   }
 }
 
