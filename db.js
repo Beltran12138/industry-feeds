@@ -53,15 +53,19 @@ async function saveNews(items) {
     console.log(`[Supabase] Syncing ${items.length} items...`);
     // Upsert into Supabase (PostgreSQL)
     // Note: Items must match the Supabase table schema exactly.
-    const cleanItems = items.map(item => ({
-      title: item.title,
-      content: item.content || '',
-      source: item.source,
-      url: item.url,
-      category: item.category || 'Signals',
-      timestamp: Math.round(item.timestamp),  // Ensure integer for BIGINT column
-      is_important: item.is_important || 0
-    }));
+    // Deduplicate by URL before upsert (PostgreSQL rejects duplicate keys in same batch)
+    const seen = new Set();
+    const cleanItems = items
+      .filter(item => item.url && !seen.has(item.url) && seen.add(item.url))
+      .map(item => ({
+        title: item.title,
+        content: item.content || '',
+        source: item.source,
+        url: item.url,
+        category: item.category || 'Signals',
+        timestamp: Math.round(item.timestamp),
+        is_important: item.is_important || 0
+      }));
 
     const { error } = await supabase
       .from('news')
