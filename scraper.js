@@ -982,9 +982,12 @@ async function runAllScrapers() {
       aiCallCount++;
       if (aiResult) {
         Object.assign(item, aiResult);
-        // 企微推送：AI 判定重要 且 该 URL 本轮之前未推送过
-        if (item.is_important === 1 && !alreadySentToWeCom.has(item.url)) {
+        // 企微推送：AI 判定重要 + 未推过 + 内容为当天或前一天（防止旧公告刷屏）
+        const isRecent = (Date.now() - item.timestamp) <= 48 * 60 * 60 * 1000;
+        if (item.is_important === 1 && !alreadySentToWeCom.has(item.url) && isRecent) {
           await sendToWeCom(item);
+        } else if (item.is_important === 1 && !isRecent) {
+          console.log(`  [WeCom Skip] Too old: ${item.title.substring(0, 40)}`);
         }
       }
     }
