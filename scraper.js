@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteerExtra.use(StealthPlugin());
-const { saveNews, db } = require('./db');
+const { saveNews, db, getAlreadyProcessed } = require('./db');
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
@@ -67,26 +67,40 @@ async function scrapePRNewswire() {
     const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT } });
     const $ = cheerio.load(data);
     const items = [];
-    
-    $('.card, .row').each((i, el) => {
-      const link = $(el).find('a[href*="/news-releases/"]').first();
-      const title = link.text().trim();
-      const href = link.attr('href');
-      if (!title || !href) return;
+    const seenUrls = new Set();
 
+    // 仅匹配实际新闻稿 URL（含 .html 的文章页，排除分类/导航页）
+    $('a[href*="/news-releases/"][href$=".html"]').each((i, el) => {
+      const href = $(el).attr('href');
+      if (!href) return;
       const fullUrl = href.startsWith('http') ? href : `https://www.prnewswire.com${href}`;
-      const timeStr = $(el).find('small').text().trim();
-      
+      if (seenUrls.has(fullUrl)) return;
+      seenUrls.add(fullUrl);
+
+      // 提取标题：优先用子元素中的标题标签，否则用链接文本并去掉日期前缀
+      const titleEl = $(el).find('h3, h2, .title, [class*="title"], [class*="headline"]').first();
+      let title = (titleEl.length ? titleEl.text() : $(el).text()).trim();
+      // 去掉可能混入的日期前缀（如 "02 Mar, 2026, 22:00 CST "）
+      title = title.replace(/^\d{1,2}\s+\w{3},\s+\d{4},?\s+[\d:]+\s*[A-Z]+\s*/i, '').trim();
+      if (!title || title.length < 15) return;
+
+      // 从父容器找时间戳
+      const timeStr = $(el).closest('.card, .row, article, li').find('small, time, [class*="date"], [class*="time"]').first().text().trim();
+      const ts = timeStr ? new Date(timeStr).getTime() : 0;
+      const timestamp = (ts && !isNaN(ts)) ? ts : Date.now() - (items.length * 1000 * 60 * 60);
+
       items.push({
-        title,
+        title: title.substring(0, 200),
         content: '',
         source: 'PRNewswire',
         url: fullUrl,
         category: 'PR',
-        timestamp: timeStr ? new Date(timeStr).getTime() : Date.now() - (i * 1000 * 60 * 15),
+        timestamp,
         is_important: 0
       });
     });
+
+    console.log(`PRNewswire: Found ${items.length} items`);
     return items;
   } catch (err) {
     console.error('PRNewswire error:', err.message);
@@ -952,21 +966,10 @@ async function runAllScrapers() {
   // 从本轮抓取结果中找出白名单来源且有 URL 的条目
   const aiCandidates = allNews.filter(i => AI_SOURCES.has(i.source) && i.url);
 
-  // 批量查询已 AI 处理过的 URL（有 business_category）→ 跳过，省 API 费用
-  const alreadyProcessed = new Set();
-  // 批量查询已推送过企微的 URL（is_important=1 且在 DB 中）→ 不重复推送
-  const alreadySentToWeCom = new Set();
-
-  if (aiCandidates.length > 0) {
-    const placeholders = aiCandidates.map(() => '?').join(',');
-    const urls = aiCandidates.map(i => i.url);
-
-    db.prepare(`SELECT url FROM news WHERE url IN (${placeholders}) AND business_category != '' AND business_category IS NOT NULL`)
-      .all(...urls).forEach(r => alreadyProcessed.add(r.url));
-
-    db.prepare(`SELECT url FROM news WHERE url IN (${placeholders}) AND is_important = 1`)
-      .all(...urls).forEach(r => alreadySentToWeCom.add(r.url));
-  }
+  // 批量查询：已 AI 处理过的 URL → 跳过（省 API 费）；已推过企微 → 不重推
+  // CI 环境查 Supabase，本地查 SQLite（GitHub Actions 每次是全新空 SQLite）
+  const { processed: alreadyProcessed, sentToWeCom: alreadySentToWeCom } =
+    await getAlreadyProcessed(aiCandidates.map(i => i.url));
 
   console.log(`  Candidates: ${aiCandidates.length} | Already processed: ${alreadyProcessed.size} | Already sent to WeCom: ${alreadySentToWeCom.size}`);
 

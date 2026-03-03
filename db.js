@@ -130,4 +130,40 @@ function getNews(limit = 100, source = null, important = 0) {
   return db.prepare(query).all(...params);
 }
 
-module.exports = { db, saveNews, getNews };
+/**
+ * 批量查询哪些 URL 已经过 AI 处理（有 business_category）及已推送企微（is_important=1）
+ * 在 GitHub Actions（USE_SUPABASE=true）中查 Supabase，本地模式查 SQLite
+ */
+async function getAlreadyProcessed(urls) {
+  const processed = new Set();
+  const sentToWeCom = new Set();
+  if (!urls || urls.length === 0) return { processed, sentToWeCom };
+
+  if (USE_SUPABASE && supabase) {
+    // CI 环境：SQLite 是空的，必须查 Supabase
+    const CHUNK = 100; // Supabase IN 子句推荐每批不超过 100 个
+    for (let i = 0; i < urls.length; i += CHUNK) {
+      const chunk = urls.slice(i, i + CHUNK);
+      const { data } = await supabase
+        .from('news')
+        .select('url, is_important')
+        .in('url', chunk)
+        .not('business_category', 'eq', '');
+      (data || []).forEach(r => {
+        processed.add(r.url);
+        if (r.is_important === 1) sentToWeCom.add(r.url);
+      });
+    }
+  } else {
+    // 本地模式：查 SQLite
+    const placeholders = urls.map(() => '?').join(',');
+    db.prepare(`SELECT url FROM news WHERE url IN (${placeholders}) AND business_category != '' AND business_category IS NOT NULL`)
+      .all(...urls).forEach(r => processed.add(r.url));
+    db.prepare(`SELECT url FROM news WHERE url IN (${placeholders}) AND is_important = 1`)
+      .all(...urls).forEach(r => sentToWeCom.add(r.url));
+  }
+
+  return { processed, sentToWeCom };
+}
+
+module.exports = { db, saveNews, getNews, getAlreadyProcessed };
