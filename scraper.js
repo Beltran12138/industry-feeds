@@ -4,7 +4,9 @@ const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteerExtra.use(StealthPlugin());
-const { saveNews, db, getAlreadyProcessed } = require('./db');
+const { saveNews, db, getAlreadyProcessed, updateSentStatus } = require('./db');
+const { processWithAI } = require('./ai');
+const { sendToWeCom } = require('./wecom');
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
@@ -162,7 +164,7 @@ async function scrapeBlockBeats() {
             url: itemUrl,
             category: 'Newsflash',
             timestamp,
-            is_important: isImportant ? 1 : 0
+            is_important: 0
           });
         }
       });
@@ -223,7 +225,7 @@ async function scrapeTwitterKOLs() {
             url: link || `https://x.com/${kol.username}`,
             category: 'KOL',
             timestamp: pubDate ? new Date(pubDate).getTime() : Date.now() - (i * 1000 * 60 * 30),
-            is_important: (cleanTitle.includes('BREAKING') || cleanTitle.includes('重要')) ? 1 : 0
+            is_important: 0
           });
         });
         console.log(`  Success from ${baseUrl}`);
@@ -283,7 +285,7 @@ async function scrapeOSL() {
             url: href,
             category: 'Announcement',
             timestamp,
-            is_important: (title.includes('Listing') || title.includes('上架') || title.includes('暂停')) ? 1 : 0
+            is_important: 0
           });
         }
       });
@@ -343,7 +345,7 @@ async function scrapeOKX() {
       url: item.url || '',
       category: 'Announcement',
       timestamp: item.pTime ? Number(item.pTime) : Date.now() - (i * 1000 * 60 * 15),
-      is_important: (item.title.includes('Launchpad') || item.title.includes('Listing') || item.title.includes('暂停')) ? 1 : 0
+      is_important: 0
     }));
   } catch (err) {
     console.error('OKX error:', err.message);
@@ -374,7 +376,7 @@ async function scrapeExio() {
         url: fullUrl,
         category: 'Announcement',
         timestamp: Date.now() - (i * 1000 * 60 * 60), 
-        is_important: (title.includes('上线') || title.includes('暂停') || title.includes('维护')) ? 1 : 0
+        is_important: 0
       });
     });
     console.log(`Exio: Found ${items.length} items`);
@@ -417,7 +419,7 @@ async function scrapeMatrixport() {
         url: fullUrl,
         category: 'Announcement',
         timestamp: Date.now() - (i * 1000 * 60 * 45),
-        is_important: importantKeywords.some(k => title.includes(k)) ? 1 : 0
+        is_important: 0
       });
     });
 
@@ -493,7 +495,7 @@ async function scrapeHashKeyGroup() {
         url: fullUrl,
         category: 'Announcement',
         timestamp: Date.now() - (i * 1000 * 60 * 60 * 2),
-        is_important: (title.includes('Listing') || title.includes('HSK') || title.includes('RWA')) ? 1 : 0
+        is_important: 0
       });
     });
     console.log(`HashKeyGroup: Found ${items.length} items`);
@@ -534,7 +536,7 @@ async function scrapeKuCoin() {
         url: fullUrl,
         category: 'Announcement',
         timestamp,
-        is_important: (text.includes('Listing') || text.includes('涓婄嚎') || text.includes('鍗囩礆')) ? 1 : 0
+        is_important: 0
       });
     });
     console.log(`KuCoin: Found ${items.length} items`);
@@ -559,7 +561,7 @@ async function scrapeHashKeyExchange() {
       url: article.html_url || '',
       category: 'Announcement',
       timestamp: article.created_at ? new Date(article.created_at).getTime() : Date.now() - (i * 1000 * 60 * 60),
-      is_important: (article.title.includes('List') || article.title.includes('Suspend') || article.title.includes('Maintenance')) ? 1 : 0
+      is_important: 0
     }));
     
     console.log(`HashKeyExchange: Found ${items.length} items from API`);
@@ -588,7 +590,7 @@ async function scrapeBinance() {
           url: `https://www.binance.com/zh-CN/support/announcement/${item.code}`,
           category: cid === 48 ? 'Listing' : 'Announcement',
           timestamp: item.releaseDate ? Number(item.releaseDate) : Date.now() - (i * 1000 * 60 * 30),
-          is_important: (cid === 48 || item.title.includes('Binance Will Launch') || item.title.includes('Maintenance')) ? 1 : 0
+          is_important: 0
         });
       });
     } catch (err) {
@@ -623,7 +625,7 @@ async function scrapeBybit() {
               url: href,
               category: 'Announcement',
               timestamp: Date.now() - (i * 1000 * 60 * 60),
-              is_important: (text.includes('上线') || text.includes('下架') || text.includes('维护')) ? 1 : 0
+              is_important: 0
             });
           }
         }
@@ -677,7 +679,7 @@ async function scrapeBitget() {
                 url: href,
                 category: 'Announcement',
                 timestamp: Date.now() - (results.length * 1000 * 60 * 30),
-                is_important: kws.some(k => text.includes(k)) ? 1 : 0
+                is_important: 0
               });
             }
           });
@@ -729,7 +731,7 @@ async function scrapeMexc() {
               url: href,
               category: 'Announcement',
               timestamp: Date.now() - (results.length * 1000 * 60 * 30),
-              is_important: importantKw.some(k => text.includes(k)) ? 1 : 0
+              is_important: 0
             });
           }
         }
@@ -795,7 +797,7 @@ async function scrapeHtx() {
           url: articleUrl,
           category: 'Announcement',
           timestamp: item.showTime || (Date.now() - (allItems.length * 1000 * 60 * 30)),
-          is_important: importantKeywords.some(k => item.title.includes(k)) ? 1 : 0
+          is_important: 0
         });
       });
     } catch (err) {
@@ -837,7 +839,7 @@ async function scrapeGate() {
               url: href,
               category: 'Announcement',
               timestamp: Date.now() - (results.length * 1000 * 60 * 30),
-              is_important: importantKeywords.some(k => text.includes(k)) ? 1 : 0
+              is_important: 0
             });
           }
         }
@@ -902,8 +904,41 @@ async function scrapePolymarketGeneric(url, sourceName) {
   }
 }
 
-const { processWithAI } = require('./ai');
-const { sendToWeCom } = require('./wecom');
+/**
+ * 严格执行准入规则判定重要性
+ */
+function checkImportance(item) {
+  const title = item.title.toUpperCase();
+  const source = item.source.toUpperCase();
+  
+  // 规则 3: 香港合规交易所 (HashKey, OSL) 的任何消息均为重要
+  if (source.includes('HASHKEY') || source.includes('OSL')) {
+    return 1;
+  }
+  
+  // 规则 1: 香港 (HK) 相关政策、牌照、业务进展
+  const HK_KEYWORDS = ['香港', 'HK', 'HONG KONG', '牌照', '监管', 'VASP', 'SFC', '证监会'];
+  if (item.category === 'HK' || HK_KEYWORDS.some(k => title.includes(k))) {
+    return 1;
+  }
+  
+  // 规则 2: 主流交易所重大动作 (排除普通上币)
+  const MAINSTREAM = ['BINANCE', 'OKX', 'BYBIT', 'HTX', 'GATE', 'BITGET', 'KUCOIN', 'MEXC'];
+  if (MAINSTREAM.some(m => source.includes(m))) {
+    // 排除普通上币
+    const EXCLUDE = ['LISTING', 'LAUNCHED', '上线', '上架', '新币', 'LAUNCHPOOL', 'LAUNCHPAD', 'DEPOSIT'];
+    if (EXCLUDE.some(k => title.includes(k))) {
+      return 0;
+    }
+    // 重大动作关键字
+    const MAJOR = ['PENALTY', 'REGULAT', 'LICENSE', 'ACQUISITION', 'UPGRADE', '暂停', '维护', '处罚', '高层', 'CEO', '收购', '牌照', 'STRATEGIC', 'INVEST'];
+    if (MAJOR.some(k => title.includes(k))) {
+      return 1;
+    }
+  }
+  
+  return item.is_important || 0;
+}
 
 async function runAllScrapers() {
   console.log('--- Starting Global Scrape ---');
@@ -919,10 +954,10 @@ async function runAllScrapers() {
   const htx = await scrapeHtx();
   const rawNews = [].concat(...results, htx);
 
-  // Deduplicate by (title, source) to avoid DB conflicts and redundant AI calls
+  // 1. 内存去重 (Title + Source)
   const seen = new Set();
   const allNews = rawNews.filter(item => {
-    const key = `${item.title}|${item.source}`;
+    const key = `${item.title.trim()}|${item.source.trim()}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -930,51 +965,63 @@ async function runAllScrapers() {
 
   console.log(`--- Finished Scrape. Found ${allNews.length} items (after deduplication). ---`);
 
-  // --- 3. AI Processing & Pushing ---
-  // Get already processed/sent status for all news items (based on URL and Title+Source)
+  // 2. 批量查询数据库状态 (URL + Title/Source)
   const { processed: alreadyProcessed, sentToWeCom: alreadySentToWeCom, existingTimestamps } =
     await getAlreadyProcessed(allNews);
 
-  console.log(`  Total items: ${allNews.length} | Already processed: ${alreadyProcessed.size} | Already sent to WeCom: ${alreadySentToWeCom.size}`);
+  console.log(`  Total: ${allNews.length} | Processed: ${alreadyProcessed.size} | Sent: ${alreadySentToWeCom.size}`);
 
   const processedNews = [];
   let aiCallCount = 0;
-  const AI_SOURCES = new Set(['TechubNews', 'Exio', 'OSL', 'WuBlock', 'PRNewswire', 'HTX', 'MEXC', 'Gate']);
-  const MAX_AI_PER_RUN = 50; // Limit per run to save API costs
+  // 扩大 AI 覆盖范围，确保主流交易所的“重大动作”能被识别
+  const AI_SOURCES = new Set([
+    'TechubNews', 'Exio', 'OSL', 'WuBlock', 'PRNewswire', 'HTX', 'MEXC', 'Gate',
+    'Binance', 'OKX', 'Bybit', 'Bitget', 'KuCoin', 'HashKeyGroup', 'HashKeyExchange'
+  ]);
+  const MAX_AI_PER_RUN = 60;
 
   for (const item of allNews) {
     const isAlreadySent = alreadySentToWeCom.has(item.url);
     const isAlreadyProcessed = alreadyProcessed.has(item.url);
     const dbTimestamp = existingTimestamps.get(item.url);
     
-    // Use original discovery timestamp if available in DB
+    // 强制执行 48h 规则：优先使用数据库记录的首次发现时间
     const finalTimestamp = dbTimestamp || item.timestamp;
+    const isRecent = (Date.now() - finalTimestamp) <= 48 * 60 * 60 * 1000;
     
-    // 1. AI Processing
+    // 3. 启发式预判重要性
+    item.is_important = checkImportance(item);
+
+    // 4. AI 处理 (如果尚未处理且属于 AI 源)
     if (AI_SOURCES.has(item.source) && !isAlreadyProcessed && aiCallCount < MAX_AI_PER_RUN) {
-      console.log(`  [AI] ${item.source}: ${item.title.substring(0, 50)}...`);
-      if (aiCallCount > 0) await new Promise(r => setTimeout(r, 4000)); // 4s throttle
-      const aiResult = await processWithAI(item.title, item.content);
-      aiCallCount++;
-      if (aiResult) {
-        Object.assign(item, aiResult);
+      // 过滤掉明显不重要的上币信息，节省 AI 额度
+      const isListing = /Listing|上线|上架|New Pair/i.test(item.title);
+      if (!isListing || item.source.includes('HashKey') || item.source.includes('OSL')) {
+        console.log(`  [AI] ${item.source}: ${item.title.substring(0, 50)}...`);
+        if (aiCallCount > 0) await new Promise(r => setTimeout(r, 3000));
+        const aiResult = await processWithAI(item.title, item.content);
+        aiCallCount++;
+        if (aiResult) {
+          Object.assign(item, aiResult);
+          // 再次应用 checkImportance 确保 AI 结果符合准入规则
+          item.is_important = (aiResult.is_important === 1 || checkImportance(item) === 1) ? 1 : 0;
+        }
       }
     }
 
-    // 2. Push to WeCom (All sources)
-    // Conditions: is_important (from scraper or AI) + not sent yet + within 48h
-    const isRecent = (Date.now() - finalTimestamp) <= 48 * 60 * 60 * 1000;
-    
+    // 5. 企业微信推送
     if (item.is_important === 1 && !isAlreadySent && isRecent) {
       console.log(`  [WeCom Push] ${item.source}: ${item.title.substring(0, 50)}`);
       try {
         await sendToWeCom(item);
         item.sent_to_wecom = 1;
+        // 关键修复：发送成功后立即更新数据库状态，防止后续逻辑报错导致重复发送
+        await updateSentStatus(item);
       } catch (err) {
         console.error(`  [WeCom Error] ${item.source}:`, err.message);
       }
     } else if (item.is_important === 1 && isAlreadySent) {
-      item.sent_to_wecom = 1; // Sync status for saveNews
+      item.sent_to_wecom = 1; 
     }
 
     processedNews.push(item);

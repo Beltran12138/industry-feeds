@@ -178,10 +178,13 @@ async function getAlreadyProcessed(items) {
     
     // 也要通过 title + source 检查
     for (const item of items) {
+      if (processed.has(item.url) && sentToWeCom.has(item.url)) continue;
+
       const row = db.prepare('SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE title = ? AND source = ?').get(item.title, item.source);
       if (row) {
         if (row.business_category) processed.add(item.url);
         if (row.sent_to_wecom === 1) sentToWeCom.add(item.url);
+        // Prioritize existing URL's timestamp if it exists, otherwise use this one's
         if (row.timestamp) existingTimestamps.set(item.url, row.timestamp);
       }
     }
@@ -190,4 +193,20 @@ async function getAlreadyProcessed(items) {
   return { processed, sentToWeCom, existingTimestamps };
 }
 
-module.exports = { db, saveNews, getNews, getAlreadyProcessed };
+/**
+ * 立即更新单条新闻的推送状态
+ * 防止脚本异常退出导致下次重复推送
+ */
+async function updateSentStatus(item) {
+  db.prepare('UPDATE news SET sent_to_wecom = 1 WHERE url = ?').run(item.url);
+  db.prepare('UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?').run(item.title, item.source);
+
+  if (USE_SUPABASE && supabase) {
+    await supabase
+      .from('news')
+      .update({ sent_to_wecom: 1 })
+      .match({ title: item.title, source: item.source });
+  }
+}
+
+module.exports = { db, saveNews, getNews, getAlreadyProcessed, updateSentStatus };
