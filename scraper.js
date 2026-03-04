@@ -7,7 +7,9 @@ puppeteerExtra.use(StealthPlugin());
 const { saveNews, db, getAlreadyProcessed, updateSentStatus } = require('./db');
 const { processWithAI } = require('./ai');
 const { sendToWeCom } = require('./wecom');
+const { filterNewsItems } = require('./filter');
 
+const MAX_RETRIES = 3;
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
 
 // Launch a browser that respects CI environment (executable path and flags)
@@ -967,16 +969,10 @@ async function runAllScrapers() {
   const htx = await scrapeHtx();
   const rawNews = [].concat(...results, htx);
 
-  // 1. 内存去重 (Title + Source)
-  const seen = new Set();
-  const allNews = rawNews.filter(item => {
-    const key = `${item.title.trim()}|${item.source.trim()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  // 1. 内存去重与过滤 (Filter + Deduplication)
+  const allNews = filterNewsItems(rawNews);
 
-  console.log(`--- Finished Scrape. Found ${allNews.length} items (after deduplication). ---`);
+  console.log(`--- Finished Scrape. Found ${allNews.length} items (after filtering & deduplication). ---`);
 
   // 2. 批量查询数据库状态 (URL + Title/Source)
   const { processed: alreadyProcessed, sentToWeCom: alreadySentToWeCom, existingTimestamps } =
@@ -996,7 +992,8 @@ async function runAllScrapers() {
   // ===== 三重防线：防止重复推送和推送过时消息 =====
   // 防线1: 只推送「今天」的消息（北京时间 UTC+8 当天 00:00 之后的）
   const now = new Date();
-  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - 8 * 60 * 60 * 1000; // 北京时间零点对应的 UTC 时间戳
+  const bjNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  const todayMidnight = Date.UTC(bjNow.getUTCFullYear(), bjNow.getUTCMonth(), bjNow.getUTCDate(), -8, 0, 0, 0);
   console.log(`  [Time Filter] Only pushing news after: ${new Date(todayMidnight).toISOString()}`);
 
   // 防线2: 本次运行内的去重（同一次执行中不允许同标题推送两次）

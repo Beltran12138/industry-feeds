@@ -65,4 +65,115 @@ async function processWithAI(title, content = '') {
   }
 }
 
-module.exports = { processWithAI };
+/**
+ * AI 生成日报总结
+ * @param {Array} newsItems - 当日新闻条目（已过滤、已分类）
+ * @returns {string|null} 日报总结文本
+ */
+async function generateDailySummary(newsItems) {
+  if (!DEEPSEEK_API_KEY || newsItems.length === 0) return null;
+
+  // 构建新闻摘要列表（限制长度避免 token 超限）
+  const digest = newsItems.slice(0, 60).map((item, i) =>
+    `${i + 1}. [${item.business_category || item.source}] ${item.title}${item.detail ? ' — ' + item.detail : ''}`
+  ).join('\n');
+
+  const prompt = `你现在是 ZHAO 的专属产品与运营 AI 助手。ZHAO 是 High Block Group 的产品经理/产品运营实习生，核心负责香港合规加密货币交易所 BitV（BitValve，正在申请 SFC VATP 牌照，产品尚未上线）以及 B2B 虚拟货币服务的研究与规划。
+
+以下是今日抓取到的行业动态：
+
+${digest}
+
+请你基于以上信息撰写今日行业简报总结，要求：
+1. 总结论（2-3句话概括今日行业整体态势）
+2. 分板块亮点（合规/监管、交易所动态、香港市场、投融资等，每板块1-2句）
+3. 对 BitV 业务的启示（1-2句从中提炼的对业务有参考价值的思考）
+
+文风：专业干练，适合在企业微信群中阅读，总字数控制在 400 字以内。不要使用 Markdown 标题符号（#），用 emoji + 粗体代替。`;
+
+  try {
+    const response = await axios.post(API_URL, {
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+      max_tokens: 1000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    return response.data?.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) {
+    console.error('[AI DailySummary Error]:', err.response?.data?.error?.message || err.message);
+    return null;
+  }
+}
+
+/**
+ * AI 生成周报总结 + 润色
+ * @param {Array} newsItems - 本周新闻条目
+ * @param {Object} stats - 统计数据 {total, important, sources, categories}
+ * @returns {string|null} 周报总结文本
+ */
+async function generateWeeklySummary(newsItems, stats = {}) {
+  if (!DEEPSEEK_API_KEY || newsItems.length === 0) return null;
+
+  // 按 business_category 分组统计
+  const catGroups = {};
+  newsItems.forEach(item => {
+    const cat = item.business_category || '其他';
+    if (!catGroups[cat]) catGroups[cat] = [];
+    if (catGroups[cat].length < 8) {
+      catGroups[cat].push(item.detail || item.title);
+    }
+  });
+
+  let groupedDigest = '';
+  for (const [cat, items] of Object.entries(catGroups)) {
+    groupedDigest += `\n【${cat}】\n`;
+    items.forEach((text, i) => {
+      groupedDigest += `  ${i + 1}. ${text}\n`;
+    });
+  }
+
+  const prompt = `你现在是 ZHAO 的专属产品与运营 AI 助手。ZHAO 是 High Block Group 的产品经理/产品运营实习生，核心负责香港合规加密货币交易所 BitV（BitValve，正在申请 SFC VATP 牌照，产品尚未上线）以及 B2B 虚拟货币服务的研究与规划。目前业务处于关键的商业调研阶段。
+
+以下是本周行业动态的分板块摘要：
+
+${groupedDigest}
+
+本周数据概览：抓取 ${stats.total || '?'} 条，重要新闻 ${stats.important || '?'} 条，涉及 ${stats.sources || '?'} 个来源。
+
+请撰写一份周报调研结论，结构如下：
+1. **调研周期**：本周的起止日期
+2. **总结论**：3-4句话总结本周行业整体趋势
+3. **分板块总结**：按你的理解细分（如合规/监管、交易所竞争格局、香港市场、RWA/稳定币、投融资动态等），每板块2-3句话
+4. **对业务的思考**：重点从本周动态中提炼出对 BitV 业务具有战略参考价值的洞察（3-5条，具体到可执行的建议）
+
+文风：专业分析师风格，内容充实但简练。适合在企业微信群中阅读。总字数控制在 800 字以内。不要使用 Markdown 标题符号（#），用 emoji + 粗体代替。`;
+
+  try {
+    const response = await axios.post(API_URL, {
+      model: 'deepseek-chat',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.4,
+      max_tokens: 2000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 45000
+    });
+
+    return response.data?.choices?.[0]?.message?.content?.trim() || null;
+  } catch (err) {
+    console.error('[AI WeeklySummary Error]:', err.response?.data?.error?.message || err.message);
+    return null;
+  }
+}
+
+module.exports = { processWithAI, generateDailySummary, generateWeeklySummary };
