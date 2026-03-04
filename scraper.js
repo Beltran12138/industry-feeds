@@ -16,12 +16,12 @@ async function launchBrowser() {
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-blink-features=AutomationControlled']
   };
-  
+
   // Respect GitHub Actions path
   if (process.env.PUPPETEER_EXECUTABLE_PATH) {
     options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
   }
-  
+
   return puppeteerExtra.launch(options);
 }
 
@@ -37,12 +37,12 @@ async function scrapeTechFlow() {
     const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT } });
     const $ = cheerio.load(data);
     const items = [];
-    
+
     $('a[href*="/article/"]').each((i, el) => {
       const href = $(el).attr('href');
       const fullUrl = href.startsWith('http') ? href : `https://www.techflowpost.com${href}`;
       const title = $(el).find('h3, .title, p').first().text().trim() || $(el).text().trim();
-      
+
       if (title && title.length > 5) {
         items.push({
           title,
@@ -120,25 +120,25 @@ async function scrapeBlockBeats() {
     await page.setUserAgent(USER_AGENT);
     await page.setViewport({ width: 1280, height: 1000 });
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
-    
+
     await new Promise(resolve => setTimeout(resolve, 8000));
-    
+
     const items = await page.evaluate(() => {
       const results = [];
       const containers = document.querySelectorAll('.news-flash-item, .newsflash_item, .newsflash-item, [class*="flash-item"]');
-      
+
       containers.forEach((el, i) => {
         const titleEl = el.querySelector('h3, .title, [class*="title"], .news-flash-item-title');
         const contentEl = el.querySelector('.content, [class*="content"], .news-flash-item-content, p');
         const text = (titleEl ? titleEl.innerText : (contentEl ? contentEl.innerText : '')).trim();
         const importantKeywords = ['Launchpad', 'SEC', '重要', 'Listing', 'ETF', 'Binance', 'OKX', '暂停', '下架', 'Alert', '紧急', '快报', '利好', '利空', '爆仓', '消息', '快讯', '美媒', '哈梅内伊'];
-        
-        const isImportant = el.querySelector('.important, .hot, [class*="important"], [class*="hot"], .news-flash-item-important') !== null || 
-                           importantKeywords.some(k => text.includes(k));
+
+        const isImportant = el.querySelector('.important, .hot, [class*="important"], [class*="hot"], .news-flash-item-important') !== null ||
+          importantKeywords.some(k => text.includes(k));
 
         const itemUrl = el.querySelector('a[href*="/flash/"], a[href*="/news/"]')?.href ||
-                         el.querySelector('a[href*="theblockbeats.info"]')?.href || '';
-        
+          el.querySelector('a[href*="theblockbeats.info"]')?.href || '';
+
         // Extract time (e.g., "15:20")
         const timeEl = el.querySelector('.time, [class*="time"]');
         let timestamp = Date.now() - (i * 60000);
@@ -170,7 +170,7 @@ async function scrapeBlockBeats() {
       });
       return results;
     });
-    
+
     console.log(`BlockBeats: Found ${items.length} items`);
     return items;
   } catch (err) {
@@ -190,7 +190,7 @@ async function scrapeTwitterKOLs() {
     { name: 'XieJiayin', username: 'xiejiayinBitget' },
     { name: 'JustinSun', username: 'justinsuntron' }
   ];
-  
+
   let allTweets = [];
   const rssBaseUrls = [
     'https://nitter.net',
@@ -207,14 +207,14 @@ async function scrapeTwitterKOLs() {
         const url = baseUrl.includes('nitter') ? `${baseUrl}/${kol.username}/rss` : `${baseUrl}/${kol.username}`;
         const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT }, timeout: 10000 });
         const $ = cheerio.load(data, { xmlMode: true });
-        
+
         $('item').each((i, el) => {
           if (i >= 15) return;
           const title = $(el).find('title').text().trim();
           const description = $(el).find('description').text().trim();
           const link = $(el).find('link').text().trim();
           const pubDate = $(el).find('pubDate').text().trim();
-          
+
           let cleanTitle = title.replace(/^RT by @\w+: /, '').replace(/^R to @\w+: /, '');
           if (cleanTitle.length > 200) cleanTitle = cleanTitle.substring(0, 197) + '...';
 
@@ -247,23 +247,23 @@ async function scrapeOSL() {
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    
+
     // Wait for content to load
-    await page.waitForSelector('.ant-list-item, .announcement-item, a[href*="/announcement/"]', { timeout: 30000 }).catch(() => {});
+    await page.waitForSelector('.ant-list-item, .announcement-item, a[href*="/announcement/"]', { timeout: 30000 }).catch(() => { });
     await new Promise(resolve => setTimeout(resolve, 5000));
-    
+
     const items = await page.evaluate(() => {
       const results = [];
       // Try to find list items first
       const listItems = document.querySelectorAll('.ant-list-item, .announcement-item, li');
-      
+
       listItems.forEach((el, i) => {
         const link = el.querySelector('a');
         if (!link) return;
-        
+
         const title = link.innerText.trim() || el.innerText.split('\n')[0].trim();
         const href = link.href;
-        
+
         if (title && title.length > 5 && href.includes('/announcement')) {
           if (!results.find(r => r.url === href)) {
             results.push({
@@ -294,13 +294,13 @@ async function scrapeTechubNews() {
   console.log('Scraping Techub News (Hong Kong) via API...');
   const apiUrl = 'https://www.techub.news/server/api/v1/featured?pageIndex=1&pageSize=20&isHongKong=true';
   try {
-    const { data } = await axios.get(apiUrl, { 
-      headers: { 
+    const { data } = await axios.get(apiUrl, {
+      headers: {
         'User-Agent': USER_AGENT,
         'Referer': 'https://www.techub.news/hongkong'
-      } 
+      }
     });
-    
+
     const articles = data?.data?.list || [];
     const items = articles.map((item, i) => ({
       title: item.title || '',
@@ -312,7 +312,7 @@ async function scrapeTechubNews() {
       timestamp: item.publish_time ? new Date(item.publish_time).getTime() : Date.now() - (i * 1000 * 60 * 30),
       is_important: 0
     }));
-    
+
     console.log(`TechubNews: Found ${items.length} items from API`);
     return items;
   } catch (err) {
@@ -349,12 +349,12 @@ async function scrapeExio() {
     const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT }, timeout: 15000 });
     const $ = cheerio.load(data);
     const items = [];
-    
+
     $('a[href*="/support/announcements/"]').each((i, el) => {
       const title = $(el).text().trim();
       const href = $(el).attr('href');
       if (!title || title.length < 5) return;
-      
+
       const fullUrl = href.startsWith('http') ? href : `https://www.ex.io${href}`;
       if (items.find(item => item.url === fullUrl)) return;
 
@@ -364,7 +364,7 @@ async function scrapeExio() {
         source: 'Exio',
         url: fullUrl,
         category: 'Announcement',
-        timestamp: Date.now() - (i * 1000 * 60 * 60), 
+        timestamp: Date.now() - (i * 1000 * 60 * 60),
         is_important: 0
       });
     });
@@ -429,13 +429,13 @@ async function scrapeWuBlock() {
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
-    
+
     const items = await page.evaluate(() => {
       const results = [];
       document.querySelectorAll('a').forEach((a, i) => {
         const href = a.href;
         const title = a.innerText.trim();
-        if (href.includes('a=show') && title.length > 10) {
+        if (href.includes('a=show') && title.length > 10 && title.includes('香港')) {
           if (!results.find(r => r.url === href)) {
             results.push({
               title,
@@ -468,12 +468,12 @@ async function scrapeHashKeyGroup() {
     const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT }, timeout: 15000 });
     const $ = cheerio.load(data);
     const items = [];
-    
+
     $('a[href*="/newsroom/"]').each((i, el) => {
       const title = $(el).text().trim();
       const href = $(el).attr('href');
       if (!title || title.length < 10) return;
-      
+
       const fullUrl = href.startsWith('http') ? href : `https://group.hashkey.com${href}`;
       if (items.find(item => item.url === fullUrl)) return;
 
@@ -502,12 +502,12 @@ async function scrapeKuCoin() {
     const { data } = await axios.get(url, { headers: { 'User-Agent': USER_AGENT }, timeout: 15000 });
     const $ = cheerio.load(data);
     const items = [];
-    
+
     $('a[href*="/announcement/"]').each((i, el) => {
       let text = $(el).text().trim();
       const href = $(el).attr('href');
       if (!text || text.length < 10 || !href.includes('hk-')) return;
-      
+
       const fullUrl = href.startsWith('http') ? href : `https://www.kucoin.com${href}`;
       if (items.find(item => item.url === fullUrl)) return;
 
@@ -542,7 +542,7 @@ async function scrapeHashKeyExchange() {
   try {
     const { data } = await axios.get(apiUrl, { headers: { 'User-Agent': USER_AGENT }, timeout: 15000 });
     const articles = data.articles || [];
-    
+
     const items = articles.map((article, i) => ({
       title: article.title || '',
       content: article.body ? article.body.replace(/<[^>]*>/g, '').substring(0, 200) : '',
@@ -552,7 +552,7 @@ async function scrapeHashKeyExchange() {
       timestamp: article.created_at ? new Date(article.created_at).getTime() : Date.now() - (i * 1000 * 60 * 60),
       is_important: 0
     }));
-    
+
     console.log(`HashKeyExchange: Found ${items.length} items from API`);
     return items;
   } catch (err) {
@@ -565,7 +565,7 @@ async function scrapeBinance() {
   console.log('Scraping Binance Announcements...');
   const catalogs = [48, 49];
   let allItems = [];
-  
+
   for (const cid of catalogs) {
     const url = `https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=${cid}&pageNo=1&pageSize=20`;
     try {
@@ -599,7 +599,7 @@ async function scrapeBybit() {
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-    
+
     const items = await page.evaluate(() => {
       const results = [];
       document.querySelectorAll('a').forEach((a, i) => {
@@ -918,7 +918,7 @@ function checkImportance(item) {
   if (item.category === 'HK' || HK_KEYWORDS.some(k => title.includes(k))) {
     return 1;
   }
-  
+
   // 规则 2: 主流交易所重大动作 (排除普通上币)
   const MAINSTREAM = ['BINANCE', 'OKX', 'BYBIT', 'HTX', 'GATE', 'BITGET', 'KUCOIN', 'MEXC'];
   if (MAINSTREAM.some(m => source.includes(m))) {
@@ -934,25 +934,36 @@ function checkImportance(item) {
     }
     // 如果是维护，只推送“全站维护”或“系统升级”类的，排除“某某代币维护”
     if ((title.includes('维护') || title.includes('升级')) && (title.includes('全站') || title.includes('系统') || !title.includes('-'))) {
-       return 1;
+      return 1;
     }
     return 0; // 其他交易所消息默认不推送，除非 AI 判定为重要
   }
-  
+
   return item.is_important || 0;
 }
 
 async function runAllScrapers() {
   console.log('--- Starting Global Scrape ---');
-  const scrapers = [
-    scrapeTechFlow(), scrapePRNewswire(), scrapeBlockBeats(), scrapeTwitterKOLs(),
-    scrapeOSL(), scrapeTechubNews(), scrapeOKX(), scrapeExio(), scrapeMatrixport(),
-    scrapeWuBlock(), scrapeHashKeyGroup(), scrapeKuCoin(), scrapeHashKeyExchange(),
-    scrapeBinance(), scrapeBybit(), scrapeBitget(), scrapeMexc(),
-    scrapePolymarketBreaking(), scrapePolymarketChina(), scrapeGate()
+  const scraperFuncs = [
+    scrapeTechFlow, scrapePRNewswire, scrapeBlockBeats, scrapeTwitterKOLs,
+    scrapeOSL, scrapeTechubNews, scrapeOKX, scrapeExio, scrapeMatrixport,
+    scrapeWuBlock, scrapeHashKeyGroup, scrapeKuCoin, scrapeHashKeyExchange,
+    scrapeBinance, scrapeBybit, scrapeBitget, scrapeMexc,
+    scrapePolymarketBreaking, scrapePolymarketChina, scrapeGate
   ];
-  
-  const results = await Promise.all(scrapers);
+
+  let results = [];
+  const BATCH_SIZE = 4; // limit concurrency
+  for (let i = 0; i < scraperFuncs.length; i += BATCH_SIZE) {
+    console.log(`--- Running batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(scraperFuncs.length / BATCH_SIZE)} ---`);
+    const batch = scraperFuncs.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.all(batch.map(f => f()));
+    results = results.concat(...batchResults);
+    if (i + BATCH_SIZE < scraperFuncs.length) {
+      await new Promise(r => setTimeout(r, 2000)); // Sleep between batches
+    }
+  }
+
   const htx = await scrapeHtx();
   const rawNews = [].concat(...results, htx);
 
@@ -983,14 +994,14 @@ async function runAllScrapers() {
   const MAX_AI_PER_RUN = 60;
 
   for (const item of allNews) {
-    const isAlreadySent = alreadySentToWeCom.has(item.url);
-    const isAlreadyProcessed = alreadyProcessed.has(item.url);
-    const dbTimestamp = existingTimestamps.get(item.url);
-    
+    const isAlreadySent = alreadySentToWeCom.has(item.url) || alreadySentToWeCom.has(item.title + '|' + item.source);
+    const isAlreadyProcessed = alreadyProcessed.has(item.url) || alreadyProcessed.has(item.title + '|' + item.source);
+    const dbTimestamp = existingTimestamps.get(item.url) || existingTimestamps.get(item.title + '|' + item.source);
+
     // 强制执行 48h 规则：优先使用数据库记录的首次发现时间
     const finalTimestamp = dbTimestamp || item.timestamp;
     const isRecent = (Date.now() - finalTimestamp) <= 48 * 60 * 60 * 1000;
-    
+
     // 3. 启发式预判重要性
     item.is_important = checkImportance(item);
 
@@ -1011,6 +1022,16 @@ async function runAllScrapers() {
       }
     }
 
+    // ⛔ 硬封锁逻辑（严格过滤限制平台）
+    const WECOM_BLOCKED = [
+      'TECHFLOW', 'BLOCKBEATS',
+      'POLY-BREAKING', 'POLY-CHINA', 'MARKET',
+      'TWITTERAB', 'WUSHUO', 'PHYREX', 'XIEJIAYIN', 'JUSTINSUN', 'KOL'
+    ];
+    if (WECOM_BLOCKED.some(s => item.source.toUpperCase().includes(s))) {
+      item.is_important = 0;
+    }
+
     // 5. 企业微信推送
     if (item.is_important === 1 && !isAlreadySent && isRecent) {
       console.log(`  [WeCom Push] ${item.source}: ${item.title.substring(0, 50)}`);
@@ -1023,7 +1044,7 @@ async function runAllScrapers() {
         console.error(`  [WeCom Error] ${item.source}:`, err.message);
       }
     } else if (item.is_important === 1 && isAlreadySent) {
-      item.sent_to_wecom = 1; 
+      item.sent_to_wecom = 1;
     }
 
     processedNews.push(item);

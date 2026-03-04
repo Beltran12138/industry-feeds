@@ -39,10 +39,10 @@ db.exec(`
 
 // Migration: add new columns if they don't exist (safe for existing DBs)
 const existingCols = db.prepare('PRAGMA table_info(news)').all().map(c => c.name);
-if (!existingCols.includes('detail'))               db.exec("ALTER TABLE news ADD COLUMN detail TEXT DEFAULT ''");
-if (!existingCols.includes('business_category'))    db.exec("ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''");
-if (!existingCols.includes('competitor_category'))  db.exec("ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''");
-if (!existingCols.includes('sent_to_wecom'))        db.exec("ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0");
+if (!existingCols.includes('detail')) db.exec("ALTER TABLE news ADD COLUMN detail TEXT DEFAULT ''");
+if (!existingCols.includes('business_category')) db.exec("ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''");
+if (!existingCols.includes('competitor_category')) db.exec("ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''");
+if (!existingCols.includes('sent_to_wecom')) db.exec("ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0");
 
 async function saveNews(items) {
   // 1. Save to local SQLite
@@ -78,9 +78,9 @@ async function saveNews(items) {
             is_important = MAX(is_important, @is_important), 
             sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom)
             WHERE url = @url`).run({
-              ...item,
-              sent_to_wecom: item.sent_to_wecom || 0
-            });
+            ...item,
+            sent_to_wecom: item.sent_to_wecom || 0
+          });
         } else {
           console.error('[DB Error]:', err.message, item.title);
         }
@@ -163,9 +163,18 @@ async function getAlreadyProcessed(items) {
       const foundByUrl = new Set();
       (data || []).forEach(r => {
         foundByUrl.add(r.url);
-        if (r.business_category) processed.add(r.url);
-        if (!!r.sent_to_wecom) sentToWeCom.add(r.url);
-        if (r.timestamp) existingTimestamps.set(r.url, r.timestamp);
+        if (r.business_category) {
+          processed.add(r.url);
+          processed.add(r.title + '|' + r.source);
+        }
+        if (!!r.sent_to_wecom) {
+          sentToWeCom.add(r.url);
+          sentToWeCom.add(r.title + '|' + r.source);
+        }
+        if (r.timestamp) {
+          existingTimestamps.set(r.url, r.timestamp);
+          existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
+        }
       });
 
       // 第二轮：对 URL 未命中的条目，用 title+source 兜底（防止 URL 微变导致重复推送）
@@ -180,9 +189,18 @@ async function getAlreadyProcessed(items) {
         (td || []).forEach(r => {
           const match = notFound.find(i => i.title === r.title && i.source === r.source);
           if (match) {
-            if (r.business_category) processed.add(match.url);
-            if (!!r.sent_to_wecom) sentToWeCom.add(match.url);
-            if (r.timestamp) existingTimestamps.set(match.url, r.timestamp);
+            if (r.business_category) {
+              processed.add(match.url);
+              processed.add(match.title + '|' + match.source);
+            }
+            if (!!r.sent_to_wecom) {
+              sentToWeCom.add(match.url);
+              sentToWeCom.add(match.title + '|' + match.source);
+            }
+            if (r.timestamp) {
+              existingTimestamps.set(match.url, r.timestamp);
+              existingTimestamps.set(match.title + '|' + match.source, r.timestamp);
+            }
           }
         });
       }
@@ -191,24 +209,43 @@ async function getAlreadyProcessed(items) {
     // 本地模式：查 SQLite
     if (urls.length > 0) {
       const placeholders = urls.map(() => '?').join(',');
-      db.prepare(`SELECT url, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`)
+      db.prepare(`SELECT url, title, source, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`)
         .all(...urls).forEach(r => {
-          if (r.business_category) processed.add(r.url);
-          if (r.sent_to_wecom === 1) sentToWeCom.add(r.url);
-          if (r.timestamp) existingTimestamps.set(r.url, r.timestamp);
+          if (r.business_category) {
+            processed.add(r.url);
+            processed.add(r.title + '|' + r.source);
+          }
+          if (r.sent_to_wecom === 1) {
+            sentToWeCom.add(r.url);
+            sentToWeCom.add(r.title + '|' + r.source);
+          }
+          if (r.timestamp) {
+            existingTimestamps.set(r.url, r.timestamp);
+            existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
+          }
         });
     }
-    
+
     // 也要通过 title + source 检查
     for (const item of items) {
-      if (processed.has(item.url) && sentToWeCom.has(item.url)) continue;
+      if ((processed.has(item.url) || processed.has(item.title + '|' + item.source)) &&
+        (sentToWeCom.has(item.url) || sentToWeCom.has(item.title + '|' + item.source))) continue;
 
       const row = db.prepare('SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE title = ? AND source = ?').get(item.title, item.source);
       if (row) {
-        if (row.business_category) processed.add(item.url);
-        if (row.sent_to_wecom === 1) sentToWeCom.add(item.url);
+        if (row.business_category) {
+          processed.add(item.url);
+          processed.add(item.title + '|' + item.source);
+        }
+        if (row.sent_to_wecom === 1) {
+          sentToWeCom.add(item.url);
+          sentToWeCom.add(item.title + '|' + item.source);
+        }
         // Prioritize existing URL's timestamp if it exists, otherwise use this one's
-        if (row.timestamp) existingTimestamps.set(item.url, row.timestamp);
+        if (row.timestamp) {
+          existingTimestamps.set(item.url, row.timestamp);
+          existingTimestamps.set(item.title + '|' + item.source, row.timestamp);
+        }
       }
     }
   }
