@@ -246,47 +246,36 @@ async function scrapeOSL() {
     browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setUserAgent(USER_AGENT);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
     
-    // OSL is highly dynamic, needs more wait
-    await new Promise(resolve => setTimeout(resolve, 20000));
+    // Wait for content to load
+    await page.waitForSelector('.ant-list-item, .announcement-item, a[href*="/announcement/"]', { timeout: 30000 }).catch(() => {});
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     const items = await page.evaluate(() => {
       const results = [];
-      // Search for any element containing "OSL HK" which is common in their announcements
-      const elements = Array.from(document.querySelectorAll('div, li')).filter(el => 
-        (el.innerText.includes('OSL HK') || el.innerText.includes('鏂板梗涓婄窔')) && 
-        (el.innerText.includes('2025') || el.innerText.includes('2026')) &&
-        el.innerText.length < 200 // Avoid large containers
-      );
+      // Try to find list items first
+      const listItems = document.querySelectorAll('.ant-list-item, .announcement-item, li');
       
-      elements.forEach((el, i) => {
-        // Split by newline to get title (first line)
-        const lines = el.innerText.trim().split('\n');
-        const title = lines[0].trim();
-        const dateStr = lines.length > 1 ? lines[1].trim() : '';
+      listItems.forEach((el, i) => {
+        const link = el.querySelector('a');
+        if (!link) return;
         
-        let timestamp = Date.now() - (i * 1000 * 60 * 60 * 5);
-        if (dateStr) {
-          const parsed = new Date(dateStr.replace(/\//g, '-'));
-          if (!isNaN(parsed.getTime())) timestamp = parsed.getTime();
-        }
-
-        // Find the closest link
-        let href = 'https://www.osl.com/hk/announcement';
-        const link = el.querySelector('a') || el.closest('a') || el.parentElement.querySelector('a');
-        if (link) href = link.href;
-
-        if (title.length > 5 && !results.find(r => r.title === title)) {
-          results.push({
-            title,
-            content: '',
-            source: 'OSL',
-            url: href,
-            category: 'Announcement',
-            timestamp,
-            is_important: 0
-          });
+        const title = link.innerText.trim() || el.innerText.split('\n')[0].trim();
+        const href = link.href;
+        
+        if (title && title.length > 5 && href.includes('/announcement')) {
+          if (!results.find(r => r.url === href)) {
+            results.push({
+              title,
+              content: '',
+              source: 'OSL',
+              url: href,
+              category: 'Announcement',
+              timestamp: Date.now() - (i * 1000 * 60 * 60 * 5),
+              is_important: 0
+            });
+          }
         }
       });
       return results;
@@ -925,16 +914,21 @@ function checkImportance(item) {
   // 规则 2: 主流交易所重大动作 (排除普通上币)
   const MAINSTREAM = ['BINANCE', 'OKX', 'BYBIT', 'HTX', 'GATE', 'BITGET', 'KUCOIN', 'MEXC'];
   if (MAINSTREAM.some(m => source.includes(m))) {
-    // 排除普通上币
-    const EXCLUDE = ['LISTING', 'LAUNCHED', '上线', '上架', '新币', 'LAUNCHPOOL', 'LAUNCHPAD', 'DEPOSIT'];
+    // 排除普通上币、常规维护、小币种活动
+    const EXCLUDE = ['LISTING', 'LAUNCHED', '上线', '上架', '新币', 'LAUNCHPOOL', 'LAUNCHPAD', 'DEPOSIT', 'AIRDROP', 'CONVERT', 'GIVEAWAY', 'STAKING'];
     if (EXCLUDE.some(k => title.includes(k))) {
       return 0;
     }
-    // 重大动作关键字
-    const MAJOR = ['PENALTY', 'REGULAT', 'LICENSE', 'ACQUISITION', 'UPGRADE', '暂停', '维护', '处罚', '高层', 'CEO', '收购', '牌照', 'STRATEGIC', 'INVEST'];
+    // 仅针对真正的重大动作：监管、法律、牌照、核心高层、战略级收购/投资
+    const MAJOR = ['PENALTY', 'REGULAT', 'LICENSE', 'ACQUISITION', 'UPGRADE', '处罚', '高层', 'CEO', '收购', '牌照', 'STRATEGIC', 'INVEST', '法律', '合规', '法院', '政府'];
     if (MAJOR.some(k => title.includes(k))) {
       return 1;
     }
+    // 如果是维护，只推送“全站维护”或“系统升级”类的，排除“某某代币维护”
+    if ((title.includes('维护') || title.includes('升级')) && (title.includes('全站') || title.includes('系统') || !title.includes('-'))) {
+       return 1;
+    }
+    return 0; // 其他交易所消息默认不推送，除非 AI 判定为重要
   }
   
   return item.is_important || 0;
