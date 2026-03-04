@@ -56,8 +56,8 @@ async function saveNews(items) {
       sent_to_wecom = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
       business_category = CASE WHEN excluded.business_category != '' THEN excluded.business_category ELSE news.business_category END,
       competitor_category = CASE WHEN excluded.competitor_category != '' THEN excluded.competitor_category ELSE news.competitor_category END,
-      detail = CASE WHEN excluded.detail != '' THEN excluded.detail ELSE news.detail END,
-      timestamp = news.timestamp -- Keep original timestamp to avoid "refreshing" old news to 48h window
+      timestamp = news.timestamp, -- Keep original timestamp to avoid "refreshing" old news to 48h window
+      created_at = news.created_at
   `);
 
   const transaction = db.transaction((items) => {
@@ -76,9 +76,15 @@ async function saveNews(items) {
           db.prepare(`UPDATE news SET 
             title = @title, content = @content, source = @source, 
             is_important = MAX(is_important, @is_important), 
-            sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom)
+            sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom),
+            business_category = CASE WHEN @business_category != '' THEN @business_category ELSE business_category END,
+            competitor_category = CASE WHEN @competitor_category != '' THEN @competitor_category ELSE competitor_category END,
+            detail = CASE WHEN @detail != '' THEN @detail ELSE detail END
             WHERE url = @url`).run({
             ...item,
+            business_category: item.business_category || '',
+            competitor_category: item.competitor_category || '',
+            detail: item.detail || '',
             sent_to_wecom: item.sent_to_wecom || 0
           });
         } else {
@@ -213,15 +219,15 @@ async function getAlreadyProcessed(items) {
         .all(...urls).forEach(r => {
           if (r.business_category) {
             processed.add(r.url);
-            processed.add(r.title + '|' + r.source);
+            if (r.title && r.source) processed.add(r.title + '|' + r.source);
           }
           if (r.sent_to_wecom === 1) {
             sentToWeCom.add(r.url);
-            sentToWeCom.add(r.title + '|' + r.source);
+            if (r.title && r.source) sentToWeCom.add(r.title + '|' + r.source);
           }
           if (r.timestamp) {
             existingTimestamps.set(r.url, r.timestamp);
-            existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
+            if (r.title && r.source) existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
           }
         });
     }
@@ -234,16 +240,16 @@ async function getAlreadyProcessed(items) {
       const row = db.prepare('SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE title = ? AND source = ?').get(item.title, item.source);
       if (row) {
         if (row.business_category) {
-          processed.add(item.url);
+          if (item.url) processed.add(item.url);
           processed.add(item.title + '|' + item.source);
         }
         if (row.sent_to_wecom === 1) {
-          sentToWeCom.add(item.url);
+          if (item.url) sentToWeCom.add(item.url);
           sentToWeCom.add(item.title + '|' + item.source);
         }
         // Prioritize existing URL's timestamp if it exists, otherwise use this one's
         if (row.timestamp) {
-          existingTimestamps.set(item.url, row.timestamp);
+          if (item.url) existingTimestamps.set(item.url, row.timestamp);
           existingTimestamps.set(item.title + '|' + item.source, row.timestamp);
         }
       }
