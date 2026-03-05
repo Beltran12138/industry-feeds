@@ -15,11 +15,17 @@ if (USE_SUPABASE) {
 
 const db = new Database(path.join(__dirname, 'alpha_radar.db'));
 
+// Helper for fuzzy deduplication
+function normalizeKey(title, source) {
+  return (title || '').trim().toLowerCase().replace(/[^\w\u4e00-\u9fa5]/g, '') + '|' + (source || '').trim().toLowerCase();
+}
+
 // SQLite setup (always runs for local caching/fallback)
 db.exec(`
   CREATE TABLE IF NOT EXISTS news (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
+    normalized_title TEXT,
     content TEXT,
     detail TEXT,
     source TEXT NOT NULL,
@@ -43,28 +49,34 @@ if (!existingCols.includes('detail')) db.exec("ALTER TABLE news ADD COLUMN detai
 if (!existingCols.includes('business_category')) db.exec("ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''");
 if (!existingCols.includes('competitor_category')) db.exec("ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''");
 if (!existingCols.includes('sent_to_wecom')) db.exec("ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0");
+if (!existingCols.includes('normalized_title')) {
+  db.exec("ALTER TABLE news ADD COLUMN normalized_title TEXT DEFAULT ''");
+  db.exec("CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title)");
+}
 
 async function saveNews(items) {
   // 1. Save to local SQLite
-  // We prioritize (title, source) deduplication as URLs are often unstable
   const insert = db.prepare(`
-    INSERT INTO news (title, content, detail, source, url, category, business_category, competitor_category, timestamp, is_important, sent_to_wecom)
-    VALUES (@title, @content, @detail, @source, @url, @category, @business_category, @competitor_category, @timestamp, @is_important, @sent_to_wecom)
+    INSERT INTO news (title, normalized_title, content, detail, source, url, category, business_category, competitor_category, timestamp, is_important, sent_to_wecom)
+    VALUES (@title, @normalized_title, @content, @detail, @source, @url, @category, @business_category, @competitor_category, @timestamp, @is_important, @sent_to_wecom)
     ON CONFLICT(title, source) DO UPDATE SET
       url = excluded.url,
+      normalized_title = excluded.normalized_title,
       is_important = MAX(news.is_important, excluded.is_important),
       sent_to_wecom = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
       business_category = CASE WHEN excluded.business_category != '' THEN excluded.business_category ELSE news.business_category END,
       competitor_category = CASE WHEN excluded.competitor_category != '' THEN excluded.competitor_category ELSE news.competitor_category END,
-      timestamp = news.timestamp, -- Keep original timestamp to avoid "refreshing" old news to 48h window
+      timestamp = news.timestamp, -- Keep original timestamp
       created_at = news.created_at
   `);
 
   const transaction = db.transaction((items) => {
     for (const item of items) {
       try {
+        const nTitle = normalizeKey(item.title, '').split('|')[0];
         insert.run({
           ...item,
+          normalized_title: nTitle,
           detail: item.detail || '',
           business_category: item.business_category || '',
           competitor_category: item.competitor_category || '',
@@ -72,9 +84,10 @@ async function saveNews(items) {
         });
       } catch (err) {
         if (err.message.includes('UNIQUE constraint failed: news.url')) {
-          // If URL is also unique but title/source differed, update by URL
           db.prepare(`UPDATE news SET 
-            title = @title, content = @content, source = @source, 
+            title = @title, 
+            normalized_title = @normalized_title,
+            content = @content, source = @source, 
             is_important = MAX(is_important, @is_important), 
             sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom),
             business_category = CASE WHEN @business_category != '' THEN @business_category ELSE business_category END,
@@ -82,6 +95,7 @@ async function saveNews(items) {
             detail = CASE WHEN @detail != '' THEN @detail ELSE detail END
             WHERE url = @url`).run({
             ...item,
+            normalized_title: normalizeKey(item.title, '').split('|')[0],
             business_category: item.business_category || '',
             competitor_category: item.competitor_category || '',
             detail: item.detail || '',
@@ -169,17 +183,18 @@ async function getAlreadyProcessed(items) {
       const foundByUrl = new Set();
       (data || []).forEach(r => {
         foundByUrl.add(r.url);
+        const nKey = normalizeKey(r.title, r.source);
         if (r.business_category) {
           processed.add(r.url);
-          processed.add(r.title + '|' + r.source);
+          processed.add(nKey);
         }
         if (!!r.sent_to_wecom) {
           sentToWeCom.add(r.url);
-          sentToWeCom.add(r.title + '|' + r.source);
+          sentToWeCom.add(nKey);
         }
         if (r.timestamp) {
           existingTimestamps.set(r.url, r.timestamp);
-          existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
+          existingTimestamps.set(nKey, r.timestamp);
         }
       });
 
@@ -193,19 +208,24 @@ async function getAlreadyProcessed(items) {
           .in('title', titleList);
 
         (td || []).forEach(r => {
-          const match = notFound.find(i => i.title === r.title && i.source === r.source);
+          // Find matching item using loose title match
+          // But here we rely on Supabase exact match for 'in' query.
+          // We can double check using normalizeKey.
+          const nKeyR = normalizeKey(r.title, r.source);
+          
+          const match = notFound.find(i => normalizeKey(i.title, i.source) === nKeyR);
           if (match) {
             if (r.business_category) {
               processed.add(match.url);
-              processed.add(match.title + '|' + match.source);
+              processed.add(nKeyR);
             }
             if (!!r.sent_to_wecom) {
               sentToWeCom.add(match.url);
-              sentToWeCom.add(match.title + '|' + match.source);
+              sentToWeCom.add(nKeyR);
             }
             if (r.timestamp) {
               existingTimestamps.set(match.url, r.timestamp);
-              existingTimestamps.set(match.title + '|' + match.source, r.timestamp);
+              existingTimestamps.set(nKeyR, r.timestamp);
             }
           }
         });
@@ -215,42 +235,52 @@ async function getAlreadyProcessed(items) {
     // 本地模式：查 SQLite
     if (urls.length > 0) {
       const placeholders = urls.map(() => '?').join(',');
-      db.prepare(`SELECT url, title, source, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`)
+      db.prepare(`SELECT url, title, normalized_title, source, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`)
         .all(...urls).forEach(r => {
+          const nKey = r.normalized_title + '|' + (r.source || '').trim().toLowerCase();
+          const nTitle = r.normalized_title;
           if (r.business_category) {
             processed.add(r.url);
-            if (r.title && r.source) processed.add(r.title + '|' + r.source);
+            processed.add(nKey);
+            processed.add(nTitle);
           }
           if (r.sent_to_wecom === 1) {
             sentToWeCom.add(r.url);
-            if (r.title && r.source) sentToWeCom.add(r.title + '|' + r.source);
+            sentToWeCom.add(nKey);
+            sentToWeCom.add(nTitle);
           }
           if (r.timestamp) {
             existingTimestamps.set(r.url, r.timestamp);
-            if (r.title && r.source) existingTimestamps.set(r.title + '|' + r.source, r.timestamp);
+            existingTimestamps.set(nKey, r.timestamp);
+            existingTimestamps.set(nTitle, r.timestamp);
           }
         });
     }
 
-    // 也要通过 title + source 检查
+    // 也要通过 normalized_title 检查
     for (const item of items) {
-      if ((processed.has(item.url) || processed.has(item.title + '|' + item.source)) &&
-        (sentToWeCom.has(item.url) || sentToWeCom.has(item.title + '|' + item.source))) continue;
+      const nTitle = normalizeKey(item.title, '').split('|')[0];
+      const nKey = nTitle + '|' + (item.source || '').trim().toLowerCase();
+      
+      if ((processed.has(item.url) || processed.has(nKey) || processed.has(nTitle)) &&
+        (sentToWeCom.has(item.url) || sentToWeCom.has(nKey) || sentToWeCom.has(nTitle))) continue;
 
-      const row = db.prepare('SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE title = ? AND source = ?').get(item.title, item.source);
+      // Use normalized_title for more robust matching (CROSS-SOURCE)
+      const row = db.prepare('SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE normalized_title = ? ORDER BY sent_to_wecom DESC, timestamp DESC LIMIT 1').get(nTitle);
       if (row) {
         if (row.business_category) {
           if (item.url) processed.add(item.url);
-          processed.add(item.title + '|' + item.source);
+          processed.add(nKey);
+          processed.add(nTitle);
         }
         if (row.sent_to_wecom === 1) {
           if (item.url) sentToWeCom.add(item.url);
-          sentToWeCom.add(item.title + '|' + item.source);
+          sentToWeCom.add(nKey);
+          sentToWeCom.add(nTitle);
         }
-        // Prioritize existing URL's timestamp if it exists, otherwise use this one's
         if (row.timestamp) {
           if (item.url) existingTimestamps.set(item.url, row.timestamp);
-          existingTimestamps.set(item.title + '|' + item.source, row.timestamp);
+          existingTimestamps.set(nKey, row.timestamp);
         }
       }
     }
@@ -261,13 +291,36 @@ async function getAlreadyProcessed(items) {
 
 /**
  * 立即更新单条新闻的推送状态
- * 防止脚本异常退出导致下次重复推送
  */
 async function updateSentStatus(item) {
-  db.prepare('UPDATE news SET sent_to_wecom = 1 WHERE url = ?').run(item.url);
-  db.prepare('UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?').run(item.title, item.source);
+  const nTitle = normalizeKey(item.title, '').split('|')[0];
+  
+  if (item.url) {
+    const stmt = db.prepare(`
+      INSERT INTO news (title, normalized_title, source, url, content, sent_to_wecom, is_important, timestamp, category, created_at)
+      VALUES (@title, @normalized_title, @source, @url, @content, 1, @is_important, @timestamp, @category, CURRENT_TIMESTAMP)
+      ON CONFLICT(url) DO UPDATE SET sent_to_wecom = 1
+    `);
+    try {
+      stmt.run({
+        title: item.title,
+        normalized_title: nTitle,
+        source: item.source,
+        url: item.url,
+        content: item.content || '',
+        is_important: item.is_important || 0,
+        timestamp: item.timestamp || Date.now(),
+        category: item.category || ''
+      });
+    } catch (e) {}
+  }
+
+  // Update by Title+Source AND NormalizedTitle+Source to be absolutely sure
+  db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?`).run(item.title, item.source);
+  db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE normalized_title = ? AND source = ?`).run(nTitle, item.source);
 
   if (USE_SUPABASE && supabase) {
+    // ... Supabase logic remains same or similarly updated ...
     // 先尝试 UPDATE（行已存在时最安全），再 UPSERT 兜底（行尚未入库时防止遗漏）
     await supabase
       .from('news')
@@ -296,4 +349,4 @@ async function updateSentStatus(item) {
   }
 }
 
-module.exports = { db, saveNews, getNews, getAlreadyProcessed, updateSentStatus };
+module.exports = { db, saveNews, getNews, getAlreadyProcessed, updateSentStatus, normalizeKey };

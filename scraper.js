@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteerExtra.use(StealthPlugin());
-const { saveNews, db, getAlreadyProcessed, updateSentStatus } = require('./db');
+const { saveNews, db, getAlreadyProcessed, updateSentStatus, normalizeKey } = require('./db');
 const { processWithAI } = require('./ai');
 const { sendToWeCom } = require('./wecom');
 const { filterNewsItems } = require('./filter');
@@ -52,7 +52,7 @@ async function scrapeTechFlow() {
           source: 'TechFlow',
           url: fullUrl,
           category: 'Deep',
-          timestamp: Date.now() - (i * 1000 * 60 * 10),
+          timestamp: 0, // Placeholder, will be set to discovery time in main loop if new
           is_important: 0
         });
       }
@@ -89,8 +89,41 @@ async function scrapePRNewswire() {
       if (!title || title.length < 15) return;
 
       const timeStr = $(el).closest('.card, .row, article, li, .col-sm-12').find('small, time, [class*="date"], [class*="time"], h3 + p').first().text().trim();
-      const ts = timeStr ? new Date(timeStr).getTime() : 0;
-      const timestamp = (ts && !isNaN(ts)) ? ts : (Date.now() - (items.length * 1000 * 60 * 60));
+      
+      // PRNewswire specific date parsing
+      let timestamp = 0;
+      if (timeStr) {
+        // Remove timezone abbreviations
+        let cleanTime = timeStr.replace(/\s+(HKT|CST|EST|PST|GMT)/i, '').trim();
+        
+        // Match time pattern (HH:MM) anywhere in the string
+        const timeMatch = cleanTime.match(/(\d{1,2}:\d{2})/);
+        
+        if (timeMatch) {
+            // Found a time string, assume it's TODAY
+            const now = new Date();
+            const [hours, minutes] = timeMatch[1].split(':').map(Number);
+            const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+            timestamp = d.getTime();
+            
+            // Adjust if time is slightly in future (e.g. server timezone diff)
+            if (timestamp > Date.now() + 1000 * 60 * 60) {
+                timestamp -= 24 * 60 * 60 * 1000;
+            }
+        } else {
+            // Try standard date parsing
+            const d = new Date(cleanTime);
+            if (!isNaN(d.getTime())) {
+              timestamp = d.getTime();
+            }
+        }
+      }
+      
+      // Strict Mode: If no valid timestamp found, DROP the item.
+      // Do NOT fallback to Date.now() to avoid pushing old news as new.
+      if (!timestamp || isNaN(timestamp)) {
+        return;
+      }
 
       items.push({
         title: title.substring(0, 200),
@@ -226,7 +259,7 @@ async function scrapeTwitterKOLs() {
             source: kol.name,
             url: link || `https://x.com/${kol.username}`,
             category: 'KOL',
-            timestamp: pubDate ? new Date(pubDate).getTime() : Date.now() - (i * 1000 * 60 * 30),
+            timestamp: pubDate ? new Date(pubDate).getTime() : 0,
             is_important: 0
           });
         });
@@ -274,7 +307,7 @@ async function scrapeOSL() {
               source: 'OSL',
               url: href,
               category: 'Announcement',
-              timestamp: Date.now() - (i * 1000 * 60 * 60 * 5),
+              timestamp: 0,
               is_important: 0
             });
           }
@@ -304,16 +337,41 @@ async function scrapeTechubNews() {
     });
 
     const articles = data?.data?.list || [];
-    const items = articles.map((item, i) => ({
-      title: item.title || '',
-      content: item.brief || '',
-      source: 'TechubNews',
-      // Fix: Use original_link if available, fallback to internal detail page
-      url: item.original_link || `https://www.techub.news/articleDetail/${item.id}`,
-      category: 'HK',
-      timestamp: item.publish_time ? new Date(item.publish_time).getTime() : Date.now() - (i * 1000 * 60 * 30),
-      is_important: 0
-    }));
+    const items = [];
+    
+    articles.forEach((item, i) => {
+      // 1. Strict Timestamp Parsing
+      let timestamp = 0;
+      // TechubNews API returns 'created_at' (ISO string) or 'publish_time'
+      const timeSource = item.created_at || item.publish_time;
+      if (timeSource) {
+        // Handle ISO string or timestamp
+        if (typeof timeSource === 'string' && timeSource.includes('T')) {
+            timestamp = new Date(timeSource).getTime();
+        } else {
+            const pt = Number(timeSource);
+            // If it's in seconds (less than year 3000 in ms), convert to ms
+            timestamp = pt < 10000000000 ? pt * 1000 : pt;
+        }
+      }
+
+      // If no valid time, skip it (don't fake it with Date.now())
+      if (!timestamp || isNaN(timestamp)) return;
+
+      // 2. Stable URL Construction
+      // Always use the internal ID-based URL to prevent duplicates from external link variations
+      const stableUrl = `https://www.techub.news/articleDetail/${item.id}`;
+
+      items.push({
+        title: item.title || '',
+        content: `Original Link: ${item.original_link || 'N/A'}\n${item.brief || ''}`,
+        source: 'TechubNews',
+        url: stableUrl,
+        category: 'HK',
+        timestamp,
+        is_important: 0
+      });
+    });
 
     console.log(`TechubNews: Found ${items.length} items from API`);
     return items;
@@ -335,7 +393,7 @@ async function scrapeOKX() {
       source: 'OKX',
       url: item.url || '',
       category: 'Announcement',
-      timestamp: item.pTime ? Number(item.pTime) : Date.now() - (i * 1000 * 60 * 15),
+      timestamp: item.pTime ? Number(item.pTime) : 0,
       is_important: 0
     }));
   } catch (err) {
@@ -360,13 +418,40 @@ async function scrapeExio() {
       const fullUrl = href.startsWith('http') ? href : `https://www.ex.io${href}`;
       if (items.find(item => item.url === fullUrl)) return;
 
+      // EX.IO typically has date in a span or small tag near the link
+      let timestamp = 0;
+      const container = $(el).closest('li, div, article');
+      // Try to find exact date element
+      let dateText = container.find('span, small, .date, time').text().trim();
+      
+      // If not found or empty, search in container text
+      if (!dateText) {
+          dateText = container.text();
+      }
+
+      // Try multiple formats
+      const dateMatch = dateText.match(/(\d{2}\.\d{2}\.\d{4})|(\w{3}\s\d{1,2},?\s+\d{4})|(\d{4}-\d{2}-\d{2})/);
+      if (dateMatch) {
+         // Fix DD.MM.YYYY format for Date.parse (needs YYYY-MM-DD or MM/DD/YYYY)
+         let dStr = dateMatch[0];
+         if (dStr.includes('.')) {
+             const parts = dStr.split('.');
+             if (parts.length === 3) dStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+         }
+         const d = new Date(dStr);
+         if (!isNaN(d.getTime())) timestamp = d.getTime();
+      }
+
+      // If no valid timestamp, skip to avoid pushing old news as new
+      if (!timestamp) return;
+
       items.push({
         title,
         content: '',
         source: 'Exio',
         url: fullUrl,
         category: 'Announcement',
-        timestamp: Date.now() - (i * 1000 * 60 * 60),
+        timestamp,
         is_important: 0
       });
     });
@@ -409,7 +494,7 @@ async function scrapeMatrixport() {
         source: 'Matrixport',
         url: fullUrl,
         category: 'Announcement',
-        timestamp: Date.now() - (i * 1000 * 60 * 45),
+        timestamp: 0,
         is_important: 0
       });
     });
@@ -445,7 +530,7 @@ async function scrapeWuBlock() {
               source: 'WuBlock',
               url: href,
               category: 'HK',
-              timestamp: Date.now() - (i * 1000 * 60 * 30),
+              timestamp: 0,
               is_important: 0
             });
           }
@@ -479,13 +564,30 @@ async function scrapeHashKeyGroup() {
       const fullUrl = href.startsWith('http') ? href : `https://group.hashkey.com${href}`;
       if (items.find(item => item.url === fullUrl)) return;
 
+      // Attempt to find date in the parent container
+      // Typically date is in a sibling element or child
+      let timestamp = 0;
+      const container = $(el).closest('div, li, tr');
+      const textContent = container.text();
+      
+      // Match YYYY-MM-DD or Month DD, YYYY
+      const dateMatch = textContent.match(/(\d{4}-\d{2}-\d{2})|([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})/);
+      
+      if (dateMatch) {
+         const d = new Date(dateMatch[0]);
+         if (!isNaN(d.getTime())) timestamp = d.getTime();
+      }
+
+      // If no timestamp found, skip (strict mode)
+      if (!timestamp) return;
+
       items.push({
         title,
         content: '',
         source: 'HashKeyGroup',
         url: fullUrl,
         category: 'Announcement',
-        timestamp: Date.now() - (i * 1000 * 60 * 60 * 2),
+        timestamp,
         is_important: 0
       });
     });
@@ -551,7 +653,7 @@ async function scrapeHashKeyExchange() {
       source: 'HashKeyExchange',
       url: article.html_url || '',
       category: 'Announcement',
-      timestamp: article.created_at ? new Date(article.created_at).getTime() : Date.now() - (i * 1000 * 60 * 60),
+      timestamp: article.created_at ? new Date(article.created_at).getTime() : 0,
       is_important: 0
     }));
 
@@ -580,7 +682,7 @@ async function scrapeBinance() {
           source: 'Binance',
           url: `https://www.binance.com/zh-CN/support/announcement/${item.code}`,
           category: cid === 48 ? 'Listing' : 'Announcement',
-          timestamp: item.releaseDate ? Number(item.releaseDate) : Date.now() - (i * 1000 * 60 * 30),
+          timestamp: item.releaseDate ? Number(item.releaseDate) : 0,
           is_important: 0
         });
       });
@@ -615,7 +717,7 @@ async function scrapeBybit() {
               source: 'Bybit',
               url: href,
               category: 'Announcement',
-              timestamp: Date.now() - (i * 1000 * 60 * 60),
+              timestamp: 0,
               is_important: 0
             });
           }
@@ -663,13 +765,48 @@ async function scrapeBitget() {
             const text = (a.innerText || a.textContent || '').trim();
             if (!text || text.length < 5) return;
             if (!results.find(r => r.url === href)) {
+              
+              // Try to find date in parent or siblings
+              let timestamp = 0;
+              const container = a.closest('.article-item, li, tr, div[class*="item"]');
+              if (container) {
+                 // Try finding explicit time elements
+                 const timeEl = container.querySelector('time, span[class*="date"], .time');
+                 const timeText = timeEl ? timeEl.innerText.trim() : container.innerText;
+                 
+                 // Bitget often uses relative time (e.g., "3 hours ago") or date (YYYY-MM-DD)
+                 if (timeText.match(/(\d+)\s*(hour|minute|day)s?\s*ago/i)) {
+                     const match = timeText.match(/(\d+)\s*(hour|minute|day)s?\s*ago/i);
+                     const num = parseInt(match[1]);
+                     const unit = match[2];
+                     const now = Date.now();
+                     if (unit.startsWith('minute')) timestamp = now - num * 60 * 1000;
+                     else if (unit.startsWith('hour')) timestamp = now - num * 60 * 60 * 1000;
+                     else if (unit.startsWith('day')) timestamp = now - num * 24 * 60 * 60 * 1000;
+                 } else {
+                     const d = new Date(timeText);
+                     if (!isNaN(d.getTime())) timestamp = d.getTime();
+                     else {
+                         // Try to extract date
+                         const dateMatch = timeText.match(/(\d{4}-\d{2}-\d{2})/);
+                         if (dateMatch) {
+                             const d2 = new Date(dateMatch[0]);
+                             if (!isNaN(d2.getTime())) timestamp = d2.getTime();
+                         }
+                     }
+                 }
+              }
+              
+              // If we can't find a date, we SKIP it to be safe against duplicates/old news
+              if (!timestamp) return;
+
               results.push({
                 title: text.split('\n')[0].trim().substring(0, 200),
                 content: '',
                 source: 'Bitget',
                 url: href,
                 category: 'Announcement',
-                timestamp: Date.now() - (results.length * 1000 * 60 * 30),
+                timestamp,
                 is_important: 0
               });
             }
@@ -721,7 +858,7 @@ async function scrapeMexc() {
               source: 'MEXC',
               url: href,
               category: 'Announcement',
-              timestamp: Date.now() - (results.length * 1000 * 60 * 30),
+              timestamp: 0,
               is_important: 0
             });
           }
@@ -787,7 +924,7 @@ async function scrapeHtx() {
           source: 'HTX',
           url: articleUrl,
           category: 'Announcement',
-          timestamp: item.showTime || (Date.now() - (allItems.length * 1000 * 60 * 30)),
+          timestamp: item.showTime || 0,
           is_important: 0
         });
       });
@@ -814,22 +951,64 @@ async function scrapeGate() {
       const results = [];
       const importantKeywords = ['上线', '新币', '下架', '暂停', '维护', '开放', 'Listing', 'Launch', 'Suspend', 'Delist', 'Launchpad'];
 
-      document.querySelectorAll('a[href]').forEach((a) => {
+      // Gate has a navigation sidebar that matches these selectors. We need to avoid it.
+      // Usually the main list is in a specific container or has specific classes.
+      // Let's look for "article-item" or list-like structures.
+      const candidates = document.querySelectorAll('.article-item, .entry-item, .item');
+      
+      // If candidates found, iterate them. If not, fallback to broad search but try to filter out nav links.
+      const elements = candidates.length > 0 ? candidates : document.querySelectorAll('a[href*="/announcements/"], a[href*="/article/"]');
+
+      elements.forEach((el) => {
+        // If el is a container, find the link inside
+        const a = el.tagName === 'A' ? el : el.querySelector('a');
+        if (!a) return;
+
         const href = a.href;
         const text = (a.innerText || a.textContent || '').trim();
+        
+        // Filter out obvious nav links (short, generic)
+        if (text.length < 10 || text === '近期公告' || text === '更多') return;
+
         if (
-          text.length > 10 &&
           (href.includes('/announcements/') || href.includes('/article/') || href.includes('/notice/')) &&
           !href.endsWith('/zh/announcements') && !href.endsWith('/announcements')
         ) {
           if (!results.find(r => r.url === href)) {
+            // Attempt to find date
+            let timestamp = 0;
+            // 1. Try inside the container first
+            let container = el.tagName === 'A' ? el.closest('.item, .article-item, li, tr') : el;
+            
+            // If no container found, use parent
+            if (!container) container = el.parentElement;
+
+            if (container) {
+                // Try finding explicit time elements
+                const timeEl = container.querySelector('.time, .date, .create-time, span[class*="time"]');
+                if (timeEl) {
+                    const d = new Date(timeEl.innerText.trim());
+                    if (!isNaN(d.getTime())) timestamp = d.getTime();
+                } else {
+                    // Try finding date pattern in text content
+                    const dateMatch = container.innerText.match(/(\d{4}-\d{2}-\d{2}(\s\d{2}:\d{2})?)|(\w{3}\s\d{1,2},\s\d{4})/);
+                    if (dateMatch) {
+                        const d = new Date(dateMatch[0]);
+                        if (!isNaN(d.getTime())) timestamp = d.getTime();
+                    }
+                }
+            }
+
+            // Strict Mode: No timestamp = No push
+            if (!timestamp) return;
+
             results.push({
               title: text.split('\n')[0].trim().substring(0, 200),
               content: '',
               source: 'Gate',
               url: href,
               category: 'Announcement',
-              timestamp: Date.now() - (results.length * 1000 * 60 * 30),
+              timestamp,
               is_important: 0
             });
           }
@@ -878,7 +1057,7 @@ async function scrapePolymarketGeneric(url, sourceName) {
               source: src,
               url: href,
               category: 'Market',
-              timestamp: Date.now() - Math.random() * 1000000,
+              timestamp: 0,
               is_important: 0
             });
           }
@@ -989,41 +1168,44 @@ async function runAllScrapers() {
   ]);
   const MAX_AI_PER_RUN = 60;
 
-  // ===== 三重防线：防止重复推送和推送过时消息 =====
-  // 防线1: 只推送「今天」的消息（北京时间 UTC+8 当天 00:00 之后的）
-  const now = new Date();
-  const bjNow = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  const todayMidnight = Date.UTC(bjNow.getUTCFullYear(), bjNow.getUTCMonth(), bjNow.getUTCDate(), -8, 0, 0, 0);
-  console.log(`  [Time Filter] Only pushing news after: ${new Date(todayMidnight).toISOString()}`);
+  // ===== 核心逻辑：基于状态的增量推送 (State-based Incremental Push) =====
+  // 不再设置硬性的时间限制（如24h内），而是完全依赖数据库的“已发送”状态。
+  // 只要是数据库中没记录的新标题，或者是记录了但从未发送成功的，都允许进入推送判定。
 
-  // 防线2: 本次运行内的去重（同一次执行中不允许同标题推送两次）
   const sentThisRun = new Set();
 
   for (const item of allNews) {
-    const cacheKey = (item.title || '').trim() + '|' + (item.source || '').trim();
-    const isAlreadySent = alreadySentToWeCom.has(item.url) || alreadySentToWeCom.has(cacheKey);
-    const isAlreadyProcessed = alreadyProcessed.has(item.url) || alreadyProcessed.has(cacheKey);
-    const dbTimestamp = existingTimestamps.get(item.url) || existingTimestamps.get(cacheKey);
+    const nTitle = normalizeKey(item.title, '').split('|')[0];
+    const cacheKey = nTitle + '|' + (item.source || '').trim().toLowerCase();
+    
+    // 检查是否已经发送或处理过
+    const isAlreadySent = alreadySentToWeCom.has(item.url) || alreadySentToWeCom.has(cacheKey) || alreadySentToWeCom.has(nTitle);
+    const isAlreadyProcessed = alreadyProcessed.has(item.url) || alreadyProcessed.has(cacheKey) || alreadyProcessed.has(nTitle);
+    const dbTimestamp = existingTimestamps.get(item.url) || existingTimestamps.get(cacheKey) || existingTimestamps.get(nTitle);
 
-    // 强制时间规则：优先使用数据库记录的首次发现时间，只允许当天的消息通过
-    const finalTimestamp = dbTimestamp || item.timestamp;
-    const isToday = finalTimestamp >= todayMidnight;
-
+    // 稳定时间戳：保持首次发现的时间
+    let finalTimestamp = dbTimestamp || item.timestamp;
+    if (!finalTimestamp || finalTimestamp === 0) {
+        finalTimestamp = Date.now();
+        item.timestamp = finalTimestamp;
+    } else {
+        item.timestamp = finalTimestamp;
+    }
+    
     // 3. 启发式预判重要性
     item.is_important = checkImportance(item);
 
-    // 4. AI 处理 (如果尚未处理且属于 AI 源)
+    // 4. AI 处理 (如果尚未处理过该内容)
     if (AI_SOURCES.has(item.source) && !isAlreadyProcessed && aiCallCount < MAX_AI_PER_RUN) {
       // 过滤掉明显不重要的上币信息，节省 AI 额度
       const isListing = /Listing|上线|上架|New Pair/i.test(item.title);
       if (!isListing || item.source.includes('HashKey') || item.source.includes('OSL')) {
-        console.log(`  [AI] ${item.source}: ${item.title.substring(0, 50)}...`);
-        if (aiCallCount > 0) await new Promise(r => setTimeout(r, 3000));
+        console.log(`  [AI Check] ${item.source}: ${item.title.substring(0, 50)}...`);
+        if (aiCallCount > 0) await new Promise(r => setTimeout(r, 2000));
         const aiResult = await processWithAI(item.title, item.content);
         aiCallCount++;
         if (aiResult) {
           Object.assign(item, aiResult);
-          // 再次应用 checkImportance 确保 AI 结果符合准入规则
           item.is_important = (aiResult.is_important === 1 || checkImportance(item) === 1) ? 1 : 0;
         }
       }
@@ -1039,39 +1221,37 @@ async function runAllScrapers() {
       item.is_important = 0;
     }
 
-    // 5. 企业微信推送 — 三重防线全部通过才允许推送
-    if (item.is_important === 1 && !isAlreadySent && isToday) {
-      // 防线2 检查: 本次运行内是否已经发过同标题的消息
-      if (sentThisRun.has(cacheKey)) {
-        console.log(`  [BLOCKED-本次已发] ${item.source}: ${item.title.substring(0, 50)}`);
+    // 5. 企业微信推送 — 只要没发过且判定为重要，就允许发送
+    if (item.is_important === 1 && !isAlreadySent) {
+      // 本次运行内的内存去重
+      if (sentThisRun.has(nTitle)) {
+        console.log(`  [SKIP] 本次运行已发送过相似内容: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
         processedNews.push(item);
         continue;
       }
 
-      // 防线3 检查: 发送前再次实时查询数据库，确认绝对没有发送过
-      const dbCheck = db.prepare('SELECT sent_to_wecom FROM news WHERE (url = ? OR (title = ? AND source = ?)) AND sent_to_wecom = 1').get(item.url, item.title, item.source);
+      // 发送前最后一次实时数据库校验
+      const dbCheck = db.prepare('SELECT sent_to_wecom FROM news WHERE (url = ? OR normalized_title = ?) AND sent_to_wecom = 1').get(item.url, nTitle);
       if (dbCheck) {
-        console.log(`  [BLOCKED-DB已发] ${item.source}: ${item.title.substring(0, 50)}`);
+        console.log(`  [SKIP] 数据库记录显示已发送: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
         processedNews.push(item);
         continue;
       }
 
-      console.log(`  [WeCom Push] ${item.source}: ${item.title.substring(0, 50)}`);
+      console.log(`  [PUSHING] ${item.source}: ${item.title.substring(0, 50)}`);
       try {
         await sendToWeCom(item);
         item.sent_to_wecom = 1;
-        sentThisRun.add(cacheKey);
-        // 发送成功后立即更新数据库状态，防止后续逻辑报错导致重复发送
+        sentThisRun.add(nTitle);
         await updateSentStatus(item);
       } catch (err) {
-        console.error(`  [WeCom Error] ${item.source}:`, err.message);
+        console.error(`  [PUSH ERROR] ${item.source}:`, err.message);
       }
     } else if (item.is_important === 1 && isAlreadySent) {
+      // 虽然是重要消息但已发过，保持标记
       item.sent_to_wecom = 1;
-    } else if (item.is_important === 1 && !isToday) {
-      console.log(`  [BLOCKED-非当天] ${item.source}: ${item.title.substring(0, 40)} ts=${new Date(finalTimestamp).toISOString()}`);
     }
 
     processedNews.push(item);
