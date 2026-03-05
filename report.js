@@ -2,6 +2,37 @@ const { db } = require('./db');
 const { filterNewsItems } = require('./filter');
 const { generateDailySummary, generateWeeklySummary } = require('./ai');
 const { sendReportToWeCom } = require('./wecom');
+const { createClient } = require('@supabase/supabase-js');
+require('dotenv').config();
+
+const USE_SUPABASE = process.env.USE_SUPABASE === 'true';
+let supabase = null;
+if (USE_SUPABASE && process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+}
+
+/**
+ * 从 Supabase 或本地 SQLite 查询新闻（用于报告生成）
+ * 优先 Supabase（GitHub Actions 环境无持久化 SQLite）
+ */
+async function fetchNewsForReport(since) {
+  if (USE_SUPABASE && supabase) {
+    const { data, error } = await supabase
+      .from('news')
+      .select('*')
+      .gte('timestamp', since)
+      .order('is_important', { ascending: false })
+      .order('timestamp', { ascending: false })
+      .limit(500);
+    if (error) {
+      console.error('[Report] Supabase query error:', error.message);
+      return [];
+    }
+    return data || [];
+  }
+  // 本地 SQLite fallback
+  return db.prepare('SELECT * FROM news WHERE timestamp > ? ORDER BY is_important DESC, timestamp DESC LIMIT 500').all(since);
+}
 
 // 业务分类排序
 const CATEGORY_ORDER = [
@@ -67,12 +98,8 @@ async function runDailyReport(dryRun = false) {
   const todayStart = getTodayMidnightBJ();
   const dateStr = formatDateBJ(Date.now());
 
-  // 查询当天的新闻
-  const rawRows = db.prepare(`
-    SELECT * FROM news
-    WHERE timestamp > ? AND (sent_to_wecom IS NULL OR sent_to_wecom = 0)
-    ORDER BY is_important DESC, timestamp DESC
-  `).all(todayStart);
+  // 查询当天所有新闻（不过滤 sent_to_wecom：日报是全天汇总摘要，即时推送过的也要包含）
+  const rawRows = await fetchNewsForReport(todayStart);
 
   // 数据清洗
   const rows = filterNewsItems(rawRows);
@@ -154,11 +181,13 @@ async function runDailyReport(dryRun = false) {
 
   // 推送到企业微信
   await sendReportToWeCom(report, '日报');
-  // 标记已发送的新闻
-  const sentIds = rows.map(r => r.id);
-  if (sentIds.length > 0) {
-    const placeholders = sentIds.map(() => '?').join(',');
-    db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE id IN (${placeholders})`).run(...sentIds);
+  // 标记已发送的新闻（仅在本地 SQLite 模式下，Supabase 模式下不需要）
+  if (!USE_SUPABASE) {
+    const sentIds = rows.map(r => r.id);
+    if (sentIds.length > 0) {
+      const placeholders = sentIds.map(() => '?').join(',');
+      db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE id IN (${placeholders})`).run(...sentIds);
+    }
   }
   console.log('[DailyReport] Done.');
   return report;
@@ -179,15 +208,15 @@ async function runWeeklyReport(dryRun = false) {
   const startDate = formatDateBJ(weekStart);
   const endDate = formatDateBJ(Date.now());
 
-  // 查询本周的新闻
-  const rawRows = db.prepare(`
-    SELECT * FROM news
-    WHERE timestamp > ?
-    ORDER BY business_category, is_important DESC, timestamp DESC
-  `).all(weekStart);
+  // 查询本周的新闻（Supabase 优先）
+  const rawRows = await fetchNewsForReport(weekStart);
 
-  // 数据清洗
-  const rows = filterNewsItems(rawRows);
+  // 数据清洗，按业务分类和重要性排序
+  const rows = filterNewsItems(rawRows).sort((a, b) => {
+    const catCmp = (a.business_category || '其他').localeCompare(b.business_category || '其他');
+    if (catCmp !== 0) return catCmp;
+    return (b.is_important || 0) - (a.is_important || 0);
+  });
 
   if (rows.length === 0) {
     console.log('[WeeklyReport] No news found for this week.');

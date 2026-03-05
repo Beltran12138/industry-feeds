@@ -283,37 +283,64 @@ async function scrapeOSL() {
     await page.setUserAgent(USER_AGENT);
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
-    // Wait for content to load
-    await page.waitForSelector('.ant-list-item, .announcement-item, a[href*="/announcement/"]', { timeout: 30000 }).catch(() => { });
+    // Wait for any news-like element to appear
+    await page.waitForSelector(
+      'a[href*="/announcement/"], .ant-list-item, [class*="news"], [class*="article"], [class*="post"]',
+      { timeout: 30000 }
+    ).catch(() => {});
     await new Promise(resolve => setTimeout(resolve, 5000));
 
     const items = await page.evaluate(() => {
       const results = [];
-      // Try to find list items first
-      const listItems = document.querySelectorAll('.ant-list-item, .announcement-item, li');
+      const seen = new Set();
 
-      listItems.forEach((el, i) => {
-        const link = el.querySelector('a');
-        if (!link) return;
-
-        const title = link.innerText.trim() || el.innerText.split('\n')[0].trim();
+      // Strategy 1: links that contain /announcement/ in href
+      document.querySelectorAll('a[href*="/announcement/"]').forEach(link => {
+        const title = (link.innerText || link.textContent || '').trim().split('\n')[0].trim();
         const href = link.href;
+        if (!title || title.length < 8 || seen.has(href)) return;
+        seen.add(href);
 
-        if (title && title.length > 5 && href.includes('/announcement')) {
-          if (!results.find(r => r.url === href)) {
-            results.push({
-              title,
-              content: '',
-              source: 'OSL',
-              url: href,
-              category: 'Announcement',
-              timestamp: 0,
-              is_important: 0
-            });
-          }
-        }
+        // Look for a date near this link
+        const container = link.closest('li, article, div[class*="item"], div[class*="card"], div[class*="news"]') || link.parentElement;
+        const containerText = container ? container.innerText : '';
+        const dateMatch = containerText.match(/\d{4}[.\/-]\d{1,2}[.\/-]\d{1,2}/);
+        const ts = dateMatch ? new Date(dateMatch[0].replace(/\./g, '-')).getTime() : Date.now();
+
+        results.push({
+          title,
+          content: '',
+          source: 'OSL',
+          url: href,
+          category: 'Announcement',
+          timestamp: isNaN(ts) ? Date.now() : ts,
+          is_important: 0
+        });
       });
-      return results;
+
+      // Strategy 2: if still empty, try list items with any OSL link inside
+      if (results.length === 0) {
+        document.querySelectorAll('.ant-list-item, li, [class*="item"]').forEach(el => {
+          const link = el.querySelector('a');
+          if (!link) return;
+          const href = link.href || '';
+          const title = (link.innerText || link.textContent || el.innerText || '').trim().split('\n')[0].trim();
+          if (!title || title.length < 8 || seen.has(href)) return;
+          if (!href.includes('osl.com')) return;
+          seen.add(href);
+          results.push({
+            title,
+            content: '',
+            source: 'OSL',
+            url: href,
+            category: 'Announcement',
+            timestamp: Date.now(),
+            is_important: 0
+          });
+        });
+      }
+
+      return results.slice(0, 20);
     });
     console.log(`OSL: Found ${items.length} items`);
     return items;
@@ -565,21 +592,22 @@ async function scrapeHashKeyGroup() {
       if (items.find(item => item.url === fullUrl)) return;
 
       // Attempt to find date in the parent container
-      // Typically date is in a sibling element or child
       let timestamp = 0;
-      const container = $(el).closest('div, li, tr');
+      const container = $(el).closest('div, li, tr, section, article');
       const textContent = container.text();
-      
-      // Match YYYY-MM-DD or Month DD, YYYY
-      const dateMatch = textContent.match(/(\d{4}-\d{2}-\d{2})|([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})/);
-      
+
+      // Match YYYY-MM-DD, "Jan. 20, 2025", "Jan 20, 2025", "January 20, 2025"
+      const dateMatch = textContent.match(
+        /(\d{4}-\d{2}-\d{2})|([A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4})/
+      );
+
       if (dateMatch) {
-         const d = new Date(dateMatch[0]);
+         const d = new Date(dateMatch[0].replace('.', ''));
          if (!isNaN(d.getTime())) timestamp = d.getTime();
       }
 
-      // If no timestamp found, skip (strict mode)
-      if (!timestamp) return;
+      // Fallback: use current time offset by position (so newer items stay on top)
+      if (!timestamp) timestamp = Date.now() - items.length * 60 * 60 * 1000;
 
       items.push({
         title,
@@ -797,8 +825,8 @@ async function scrapeBitget() {
                  }
               }
               
-              // If we can't find a date, we SKIP it to be safe against duplicates/old news
-              if (!timestamp) return;
+              // If no date found, use current time as fallback (dedup handled by URL)
+              if (!timestamp) timestamp = Date.now();
 
               results.push({
                 title: text.split('\n')[0].trim().substring(0, 200),

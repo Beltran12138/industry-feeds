@@ -60,7 +60,7 @@ async function saveNews(items) {
     INSERT INTO news (title, normalized_title, content, detail, source, url, category, business_category, competitor_category, timestamp, is_important, sent_to_wecom)
     VALUES (@title, @normalized_title, @content, @detail, @source, @url, @category, @business_category, @competitor_category, @timestamp, @is_important, @sent_to_wecom)
     ON CONFLICT(title, source) DO UPDATE SET
-      url = excluded.url,
+      url = CASE WHEN excluded.url IS NOT NULL AND excluded.url != '' THEN excluded.url ELSE news.url END,
       normalized_title = excluded.normalized_title,
       is_important = MAX(news.is_important, excluded.is_important),
       sent_to_wecom = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
@@ -84,30 +84,39 @@ async function saveNews(items) {
         });
       } catch (err) {
         if (err.message.includes('UNIQUE constraint failed: news.url')) {
-          db.prepare(`UPDATE news SET 
-            title = @title, 
-            normalized_title = @normalized_title,
-            content = @content, source = @source, 
-            is_important = MAX(is_important, @is_important), 
-            sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom),
-            business_category = CASE WHEN @business_category != '' THEN @business_category ELSE business_category END,
-            competitor_category = CASE WHEN @competitor_category != '' THEN @competitor_category ELSE competitor_category END,
-            detail = CASE WHEN @detail != '' THEN @detail ELSE detail END
-            WHERE url = @url`).run({
-            ...item,
-            normalized_title: normalizeKey(item.title, '').split('|')[0],
-            business_category: item.business_category || '',
-            competitor_category: item.competitor_category || '',
-            detail: item.detail || '',
-            sent_to_wecom: item.sent_to_wecom || 0
-          });
+          try {
+            db.prepare(`UPDATE news SET 
+              title = @title, 
+              normalized_title = @normalized_title,
+              content = @content, source = @source, 
+              is_important = MAX(is_important, @is_important), 
+              sent_to_wecom = MAX(sent_to_wecom, @sent_to_wecom),
+              business_category = CASE WHEN @business_category != '' THEN @business_category ELSE business_category END,
+              competitor_category = CASE WHEN @competitor_category != '' THEN @competitor_category ELSE competitor_category END,
+              detail = CASE WHEN @detail != '' THEN @detail ELSE detail END
+              WHERE url = @url`).run({
+              ...item,
+              normalized_title: normalizeKey(item.title, '').split('|')[0],
+              business_category: item.business_category || '',
+              competitor_category: item.competitor_category || '',
+              detail: item.detail || '',
+              sent_to_wecom: item.sent_to_wecom || 0
+            });
+          } catch (e2) {
+            console.warn('[DB Error during URL-update]:', e2.message);
+          }
         } else {
-          console.error('[DB Error]:', err.message, item.title);
+          console.warn('[DB Error during Insert]:', err.message, item.title);
         }
       }
     }
   });
-  transaction(items);
+  
+  try {
+    transaction(items);
+  } catch (fatalErr) {
+    console.error('[DB Fatal Error in saveNews]:', fatalErr.message);
+  }
 
   // 2. Sync to Supabase if enabled
   if (USE_SUPABASE && supabase) {
@@ -295,29 +304,43 @@ async function getAlreadyProcessed(items) {
 async function updateSentStatus(item) {
   const nTitle = normalizeKey(item.title, '').split('|')[0];
   
-  if (item.url) {
-    const stmt = db.prepare(`
+  try {
+    // 1. First, try updating any existing record that matches either the URL or Title+Source
+    if (item.url) {
+      db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE url = ?`).run(item.url);
+    }
+    db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?`).run(item.title, item.source);
+    db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE normalized_title = ? AND source = ?`).run(nTitle, item.source);
+
+    // 2. Then, try to insert a new record if it doesn't exist yet (based on title+source as the main key)
+    // We use ON CONFLICT DO UPDATE to handle the case where it exists but wasn't updated above (e.g. slight race condition)
+    const upsert = db.prepare(`
       INSERT INTO news (title, normalized_title, source, url, content, sent_to_wecom, is_important, timestamp, category, created_at)
       VALUES (@title, @normalized_title, @source, @url, @content, 1, @is_important, @timestamp, @category, CURRENT_TIMESTAMP)
-      ON CONFLICT(url) DO UPDATE SET sent_to_wecom = 1
+      ON CONFLICT(title, source) DO UPDATE SET sent_to_wecom = 1
     `);
-    try {
-      stmt.run({
-        title: item.title,
-        normalized_title: nTitle,
-        source: item.source,
-        url: item.url,
-        content: item.content || '',
-        is_important: item.is_important || 0,
-        timestamp: item.timestamp || Date.now(),
-        category: item.category || ''
-      });
-    } catch (e) {}
+    
+    upsert.run({
+      title: item.title,
+      normalized_title: nTitle,
+      source: item.source,
+      url: item.url || null,
+      content: item.content || '',
+      is_important: item.is_important || 0,
+      timestamp: item.timestamp || Date.now(),
+      category: item.category || ''
+    });
+  } catch (e) {
+    // If it fails (e.g. URL unique constraint violation), we catch it here to prevent pipeline crash
+    if (e.message.includes('UNIQUE constraint failed: news.url')) {
+       // It means another record with this URL exists, let's just update its status
+       try {
+         db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE url = ?`).run(item.url);
+       } catch (e2) {}
+    } else {
+       console.warn('[updateSentStatus Warning]:', e.message, item.title);
+    }
   }
-
-  // Update by Title+Source AND NormalizedTitle+Source to be absolutely sure
-  db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?`).run(item.title, item.source);
-  db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE normalized_title = ? AND source = ?`).run(nTitle, item.source);
 
   if (USE_SUPABASE && supabase) {
     // ... Supabase logic remains same or similarly updated ...

@@ -8,7 +8,7 @@ const JUNK_URL_PATTERNS = [
     'service.weibo.com/share/share.php',
     'weibo.com/share',
     'share.php',
-    '#m',  // nitter 锚点链接的重复
+    // 注意：不要加 '#m'，nitter 所有推文链接都以 #m 结尾，加了会过滤掉所有 KOL 推文
 ];
 
 // 垃圾标题关键词（完全匹配或包含即过滤）
