@@ -17,12 +17,13 @@ async function sendToWeCom(item) {
 
   // 构建消息模板（Markdown 格式，适配企业微信机器人）
   const content = `
-### 🚀 行业情报快报
+## 🚨 行业情报快报
+
 **【${item.business_category || '快讯'}】** ${item.title}
 
-> **详情：** ${item.detail || '暂无详情'}
-> **来源：** ${item.source}
-> **链接：** [查看原文](${item.url})
+> **详情:** ${item.detail || '暂无详情'}  
+> **来源:** ${item.source}  
+> **链接:** [查看原文](${item.url})
 
 ---
 *由 Alpha-Radar 智能抓取并推送*
@@ -56,8 +57,15 @@ async function sendReportToWeCom(reportContent, reportType = '日报') {
     return;
   }
 
+  // 添加报告头部
+  const header = reportType === '周报' 
+    ? '## 📅 周报汇总' 
+    : '## 📋 日报汇总';
+  
+  const formattedContent = header + '\n\n' + reportContent;
+
   // 将内容按段落拆分，确保每段不超过限制
-  const segments = splitReportContent(reportContent, WECOM_MARKDOWN_LIMIT - 200);
+  const segments = splitReportContent(formattedContent, WECOM_MARKDOWN_LIMIT - 200);
 
   console.log(`[WeCom] Sending ${reportType}: ${segments.length} segment(s)...`);
 

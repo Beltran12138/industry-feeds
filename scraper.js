@@ -1103,24 +1103,80 @@ async function scrapePolymarketGeneric(url, sourceName) {
 }
 
 /**
- * 严格执行准入规则判定重要性
+ * 严格按规则判定重要性
+ * 规则：
+ * - BLOCK_LIST: 不推送
+ * - HK_SOURCES: 全部推送
+ * - PRNewswire: 仅香港相关或头部离岸所
+ * - MAINSTREAM_EXCHANGES: 排除上币/链上类后推送
  */
 function checkImportance(item) {
-  const title = item.title.toUpperCase();
-  const source = item.source.toUpperCase();
+  const title = item.title;
+  const source = item.source;
+  const titleLower = title.toLowerCase();
+  const sourceUpper = source.toUpperCase();
 
-  // ⛔ 硬封锁：以下平台的任何消息禁止推送到企业微信，不受任何其他规则影响
-  const WECOM_BLOCKED = [
-    'TECHFLOW', 'BLOCKBEATS',
-    'POLY-BREAKING', 'POLY-CHINA',
-    'TWITTERAB', 'WUSHUO', 'PHYREX', 'XIEJIAYIN', 'JUSTINSUN'
+  // 🚫 BLOCK_LIST: 不推送
+  const BLOCK_LIST = [
+    'TwitterAB', 'WuShuo', 'Phyrex', 'JustinSun', 'XieJiayin',
+    'Poly-Breaking', 'Poly-China',
+    'TechFlow', 'BlockBeats'
   ];
-  if (WECOM_BLOCKED.includes(source)) return 0;
+  if (BLOCK_LIST.some(s => sourceUpper.includes(s))) {
+    return 0;
+  }
 
-  // 规则 3: 香港合规交易所 (HashKey, OSL) 的任何消息均为重要
-  if (source.includes('HASHKEY') || source.includes('OSL')) {
+  // ✅ HK_SOURCES: 香港板块全部推送
+  const HK_SOURCES = [
+    'OSL', 'Exio', 'TechubNews', 'Matrixport',
+    'HashKeyGroup', 'HashKeyExchange', 'WuBlock'
+  ];
+  if (HK_SOURCES.some(s => sourceUpper.includes(s))) {
     return 1;
   }
+
+  // ⚠️ PRNewswire: 仅香港相关或头部离岸所
+  if (sourceUpper === 'PRNEWswire') {
+    // 香港相关公司
+    const HK_COMPANIES = [
+      'hashkey', 'osl', 'exio', 'matrixport', 'finloop',
+      'bitv', 'bitvalve', 'victory', 'hong kong', 'hk'
+    ];
+    // 头部离岸所
+    const TOP_EXCHANGES = [
+      'gate', 'okx', 'htx', 'bybit', 'mexc', 'bitget', 'binance', 'kucoin'
+    ];
+    
+    const isHKRelated = HK_COMPANIES.some(c => titleLower.includes(c));
+    const isTopExchange = TOP_EXCHANGES.some(e => titleLower.includes(e));
+    
+    if (isHKRelated || isTopExchange) {
+      return 1;
+    }
+    return 0;
+  }
+
+  // ⚠️ MAINSTREAM_EXCHANGES: 排除上币/链上类后推送
+  const MAINSTREAM_EXCHANGES = [
+    'Gate', 'OKX', 'HTX', 'Bybit', 'MEXC', 'Bitget', 'Binance', 'KuCoin'
+  ];
+  if (MAINSTREAM_EXCHANGES.some(e => sourceUpper.includes(e))) {
+    // 排除关键词
+    const EXCLUDE_KEYWORDS = [
+      'listing', '上线', '上架', '新币', 'launch', 'launchpool',
+      'launchpad', 'airdrop', '空投', 'defi', '币', 'new pair'
+    ];
+    
+    const shouldExclude = EXCLUDE_KEYWORDS.some(kw => titleLower.includes(kw));
+    if (shouldExclude) {
+      return 0;
+    }
+    return 1;
+  }
+
+  // 其他来源默认不推送
+  return 0;
+}
 
   // 规则 1: 香港 (HK) 相关政策、牌照、业务进展
   const HK_KEYWORDS = ['香港', 'HK', 'HONG KONG', '牌照', '监管', 'VASP', 'SFC', '证监会'];
