@@ -73,21 +73,29 @@ async function scrapePRNewswire() {
     const $ = cheerio.load(data);
     const items = [];
     const seenUrls = new Set();
+  const seenTitles = new Set(); // 新增：标题去重
 
     // 仅匹配实际新闻稿 URL（含 .html 的文章页，排除分类/导航页）
     $('a[href*="/news-releases/"][href$=".html"]').each((i, el) => {
       const href = $(el).attr('href');
       if (!href) return;
-      const fullUrl = href.startsWith('http') ? href : `https://www.prnewswire.com${href}`;
-      if (seenUrls.has(fullUrl)) return;
-      seenUrls.add(fullUrl);
+            // URL 规范化：移除查询参数和尾部斜杠，防止同一文章不同 URL 变体
+   let fullUrl = href.startsWith('http') ? href : `https://www.prnewswire.com${href}`;
+   const normalizedUrl = fullUrl.split('?')[0].replace(/\/$/, ''); // 移除？后的参数和尾部/
+      if (seenUrls.has(normalizedUrl)) return;
+      seenUrls.add(normalizedUrl);
 
       // 提取标题：优先用子元素中的标题标签，否则用链接文本并去掉日期前缀
       const titleEl = $(el).find('h3, h2, .title, [class*="title"], [class*="headline"]').first();
       let title = (titleEl.length ? titleEl.text() : $(el).text()).trim();
       // 去掉可能混入的日期前缀（如 "02 Mar, 2026, 22:00 CST "）
       title = title.replace(/^\d{1,2}\s+\w{3},\s+\d{4},?\s+[\d:]+\s*[A-Z]+\s*/i, '').trim();
-      if (!title || title.length < 15) return;
+        // 归一化标题用于去重：转小写、移除多余空格
+   const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
+     
+     // 标题去重：防止同一新闻的不同 URL 版本
+   if (!title || title.length < 15 || seenTitles.has(normalizedTitle)) return;
+     seenTitles.add(normalizedTitle);
 
       const timeStr = $(el).closest('.card, .row, article, li, .col-sm-12').find('small, time, [class*="date"], [class*="time"], h3 + p').first().text().trim();
       
@@ -394,13 +402,15 @@ async function scrapeTechubNews() {
 
       // 2. Stable URL Construction
       // Always use the internal ID-based URL to prevent duplicates from external link variations
-      const stableUrl = `https://www.techub.news/articleDetail/${item.uid || item.id}`;
+      // TechubNews API may return 'link' or 'url' field that contains the actual article URL
+    const actualUrl = item.link || item.url || `https://www.techub.news/article/${item.uid || item.id}`;
+    const normalizedUrl = actualUrl.split('?')[0].replace(/#.*$/, ''); // 移除参数和锚点
 
       items.push({
         title: item.title || '',
         content: `Original Link: ${item.original_link || 'N/A'}\n${item.brief || ''}`,
         source: 'TechubNews',
-        url: stableUrl,
+        url: actualUrl, // 使用实际 URL，确保链接可访问
         category: 'HK',
         timestamp,
         is_important: 0
@@ -513,14 +523,22 @@ async function scrapeMatrixport() {
       timeout: 40000
     });
     const $ = cheerio.load(data);
-    const items = [];
+  const items = [];
+ const seenUrls = new Set();
+ const seenTitles = new Set();
 
     $('a[href*="/zh-CN/articles/"]').each((i, el) => {
       const href = $(el).attr('href') || '';
       const title = $(el).text().trim();
       if (!title || title.length < 5) return;
       const fullUrl = href.startsWith('http') ? href : `https://helpcenter.matrixport.com${href}`;
-      if (items.find(item => item.url === fullUrl)) return;
+    const normalizedUrl = fullUrl.split('?')[0];
+    const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ');
+     
+      // 双重去重
+    if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) return;
+    seenUrls.add(normalizedUrl);
+    seenTitles.add(normalizedTitle);
 
       items.push({
         title: title.substring(0, 200),
@@ -528,7 +546,7 @@ async function scrapeMatrixport() {
         source: 'Matrixport',
         url: fullUrl,
         category: 'Announcement',
-        timestamp: 0,
+        timestamp: Date.now(), // 使用当前时间作为 fallback
         is_important: 0
       });
     });
@@ -552,21 +570,23 @@ async function scrapeWuBlock() {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
 
     const items = await page.evaluate(() => {
-      const results = [];
+    const results = [];
+  const seenUrls = new Set();
+  const seenTitles = new Set();
       document.querySelectorAll('a').forEach((a, i) => {
         const href = a.href;
         const title = a.innerText.trim();
         if (href.includes('a=show') && title.length > 10 && title.includes('香港')) {
-          if (!results.find(r => r.url === href)) {
-            results.push({
-              title,
-              content: '',
-              source: 'WuBlock',
-              url: href,
-              category: 'HK',
-              timestamp: 0,
-              is_important: 0
-            });
+          // URL 和标题双重去重
+         const normalizedUrl = href.split('#')[0];
+         const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ');
+         
+         if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) {
+          return;
+         }
+         
+         seenUrls.add(normalizedUrl);
+         seenTitles.add(normalizedTitle);
           }
         }
       });
