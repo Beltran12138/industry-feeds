@@ -570,7 +570,9 @@ async function scrapeWuBlock() {
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 45000 });
 
     const items = await page.evaluate(() => {
-    const results = [];
+   const results = [];
+  const seenUrls = new Set();
+  const seenTitles = new Set();
   const seenUrls = new Set();
   const seenTitles = new Set();
       document.querySelectorAll('a').forEach((a, i) => {
