@@ -181,13 +181,12 @@ async function saveNews(items) {
         competitor_category: i.competitor_category || '',
         timestamp:           Math.round(i.timestamp || 0),
         is_important:        i.is_important         || 0,
-        sent_to_wecom:       i.sent_to_wecom        || 0,
       }));
 
     // 分批 upsert（Supabase 单次上限 ~500 行）
     for (let i = 0; i < cleanRows.length; i += DB.SUPABASE_CHUNK_SIZE) {
       const chunk = cleanRows.slice(i, i + DB.SUPABASE_CHUNK_SIZE);
-      const { error } = await supabase.from('news').upsert(chunk, { onConflict: 'title,source' });
+      const { error } = await supabase.from('news').upsert(chunk, { onConflict: 'url' });
       if (error) console.error('[Supabase upsert]', error.message);
     }
   }
