@@ -22,13 +22,12 @@ const {
   getAlreadyProcessed,
   updateSentStatus,
   normalizeKey,
-  getSourceConfig,
   canPushMessage,
   updateSourcePush,
 } = require('../db');
 const { processWithAI }    = require('../ai');
 const { sendToWeCom }      = require('../wecom');
-const { filterNewsItems }  = require('../filter');
+const { filterNewsItems, getSourceConfig } = require('../filter');
 const { closeBrowser }     = require('./browser');
 
 const {
