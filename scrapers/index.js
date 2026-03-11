@@ -158,12 +158,12 @@ async function runAllScrapers() {
       item.timestamp = Date.now();
     }
 
-    // 时间戳新鲜度检查：只推送最近 30 分钟内的消息（防止旧稿混入）
-    const FRESHNESS_THRESHOLD = 30 * 60 * 1000; // 30 分钟（毫秒）
+    // 时间戳新鲜度检查：只推送最近 24 小时内的消息（防止旧稿混入）
+    const FRESHNESS_THRESHOLD = 24 * 60 * 60 * 1000; // 24 小时（毫秒）
     const messageAge = Date.now() - item.timestamp;
     if (messageAge > FRESHNESS_THRESHOLD) {
-      const minutesOld = Math.floor(messageAge / 60000);
-      console.log(`[SKIP] 消息过旧 (${minutesOld}分钟前): ${item.title?.substring(0, 50)}`);
+      const hoursOld = Math.floor(messageAge / (60 * 60 * 1000));
+      console.log(`[SKIP] 消息过旧 (${hoursOld}小时前): ${item.title?.substring(0, 50)}`);
       item.sent_to_wecom = 1;  // 标记为已处理，避免下次还检查
       processedNews.push(item);
       continue;
@@ -202,12 +202,14 @@ async function runAllScrapers() {
       if (!canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours)) {
         console.log(`[SKIP COOLDOWN] ${item.source}: 冷却期内 (${sourceConfig.pushCooldownHours}h): ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save skip cooldown]', e.message));
         processedNews.push(item);
         continue;
       }
 
       if (sentThisRun.has(nTitle) || pushLock.has(nTitle)) {
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save sent this run]', e.message));
         processedNews.push(item);
         continue;
       }
@@ -223,6 +225,7 @@ async function runAllScrapers() {
 
       if (dbCheck) {
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save dbCheck]', e.message));
         processedNews.push(item);
         pushLock.delete(nTitle);
         continue;

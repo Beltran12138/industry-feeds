@@ -1168,7 +1168,7 @@ function checkImportance(item) {
   const sourceUpper = source.toUpperCase();
 
   // 🚫 BLOCK_LIST: 不推送 (from config)
-  if (WECOM_BLOCK_SOURCES.has(sourceUpper)) {
+  if (WECOM_BLOCK_SOURCES.has(source)) {
     return 0;
   }
 
@@ -1334,6 +1334,7 @@ async function runAllScrapers() {
       if (!canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours)) {
         console.log(`  [SKIP COOLDOWN] ${item.source}: 冷却期内 (${sourceConfig.pushCooldownHours}h): ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save skip cooldown]', e.message));
         processedNews.push(item);
         continue;
       }
@@ -1342,6 +1343,7 @@ async function runAllScrapers() {
       if (sentThisRun.has(nTitle)) {
         console.log(`  [SKIP] 本次运行已发送过相似内容: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save sent this run]', e.message));
         processedNews.push(item);
         continue;
       }
@@ -1351,6 +1353,7 @@ async function runAllScrapers() {
       if (pushLock.has(lockKey)) {
         console.log(`  [SKIP] 当前批次正在处理相似内容: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save pushLock]', e.message));
         processedNews.push(item);
         continue;
       }
@@ -1367,6 +1370,7 @@ async function runAllScrapers() {
       if (dbCheck) {
         console.log(`  [SKIP] 数据库记录显示已发送: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
+        await saveNews([item]).catch(e => console.warn('[Save dbCheck]', e.message));
         processedNews.push(item);
         pushLock.delete(lockKey);
         continue;
