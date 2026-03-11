@@ -241,8 +241,8 @@ const SERVER = {
   NEWS_LIMIT_ALL: 500,
   NEWS_LIMIT_SOURCE: 100,
   SCRAPE_CRON: '*/15 * * * *',
-  DAILY_REPORT_CRON: '0 10 * * *',    // UTC 10:00 = 北京 18:00
-  WEEKLY_REPORT_CRON: '0 10 * * 5',   // 每周五
+  DAILY_REPORT_CRON: '0 10 * * 1-4',  // UTC 10:00 = 北京 18:00 (周一至周四)
+  WEEKLY_REPORT_CRON: '0 10 * * 5',   // 每周五 UTC 10:00 = 北京 18:00
 };
 
 module.exports = {
