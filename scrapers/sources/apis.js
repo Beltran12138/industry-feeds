@@ -9,9 +9,12 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { SocksProxyAgent } = require('socks-proxy-agent');
 const { SCRAPER } = require('../../config');
-const { makeItem, parseTimestamp, extractTimestamp } = require('../utils');
+const { makeItem, parseTimestamp, extractTimestamp, parseRelativeTime } = require('../utils');
 
 const UA = SCRAPER.USER_AGENT;
+
+// 24 小时新鲜度阈值（毫秒），用于在爬虫层直接丢弃超龄消息
+const FRESHNESS_MS = 24 * 60 * 60 * 1000;
 
 // ── OKX ──────────────────────────────────────────────────────────────────────
 async function scrapeOKX() {
@@ -116,6 +119,12 @@ async function scrapeTechubNews() {
         return;
       }
 
+      // 爬虫层年龄过滤：超过 24h 的直接丢弃，防止旧稿混入
+      if (Date.now() - timestamp > FRESHNESS_MS) {
+        console.log(`  [TechubNews SKIP] Too old (${Math.floor((Date.now() - timestamp) / 3600000)}h): ${(item.title || '').substring(0, 40)}`);
+        return;
+      }
+
       // 修复 URL 格式：使用 article 而非 articleDetail
       const actualUrl = item.link || item.url || `https://www.techub.news/article/${item.uid || item.id}`;
       const normalizedUrl = actualUrl.split('?')[0].replace(/#.*$/, '').replace(/\/$/, '');
@@ -182,24 +191,38 @@ async function scrapeMatrixport() {
       seenTitles.add(normalizedTitle);
 
       // 尝试提取时间戳（从列表项容器中查找）
+      // 注意：extractTimestamp 不再接受仅 HH:MM 格式，防止将旧文章误标为今天
       let timestamp = 0;
       const container = $(el).closest('.article-list-item, li, .card, article');
       if (container.length) {
         const timeText = container.find('.meta-item, .date, time, .updated-at, [class*="date"], [class*="time"]').first().text().trim();
         if (timeText) {
-          timestamp = extractTimestamp(timeText);
+          // 优先尝试相对时间（Intercom 常显示 "Updated 3 hours ago" / "更新于 2 天前"）
+          timestamp = parseRelativeTime(timeText);
+          if (!timestamp) {
+            timestamp = extractTimestamp(timeText, false);
+          }
         }
       }
       
       // 如果容器内没找到，尝试从标题附近找
       if (!timestamp) {
         const parentText = $(el).parent().text();
-        timestamp = extractTimestamp(parentText);
+        timestamp = parseRelativeTime(parentText);
+        if (!timestamp) {
+          timestamp = extractTimestamp(parentText, false);
+        }
       }
 
       // 严格模式：没有时间戳的消息直接丢弃，防止旧稿混入
       if (!timestamp) {
         console.log(`  [Matrixport SKIP] No timestamp: ${title.substring(0, 40)}`);
+        return;
+      }
+
+      // 爬虫层年龄过滤：超过 24h 的直接丢弃
+      if (Date.now() - timestamp > FRESHNESS_MS) {
+        console.log(`  [Matrixport SKIP] Too old (${Math.floor((Date.now() - timestamp) / 3600000)}h): ${title.substring(0, 40)}`);
         return;
       }
 
@@ -301,10 +324,17 @@ async function scrapePRNewswire() {
         .find('small, time, [class*="date"], [class*="time"], h3 + p').first().text().trim();
 
       // 严格时间解析 — 无时间戳则丢弃（避免旧稿混入）
-      let timestamp = extractTimestamp(timeStr);
+      // 注意：不允许 HH:MM-only 匹配，防止旧文章被标为今天
+      let timestamp = extractTimestamp(timeStr, false);
       
       if (!timestamp) {
         console.log(`  [PRNewswire SKIP] No timestamp: ${title.substring(0, 40)}`);
+        return;
+      }
+
+      // 爬虫层年龄过滤：超过 24h 的直接丢弃
+      if (Date.now() - timestamp > FRESHNESS_MS) {
+        console.log(`  [PRNewswire SKIP] Too old (${Math.floor((Date.now() - timestamp) / 3600000)}h): ${title.substring(0, 40)}`);
         return;
       }
 

@@ -65,8 +65,13 @@ function parseTimestamp(raw) {
 /**
  * 从文本中提取日期时间戳（多种格式）
  * 返回 0 = 未能解析
+ *
+ * @param {string} text  包含时间信息的文本
+ * @param {boolean} allowTimeOnly  是否允许仅 HH:MM 格式（默认 false）。
+ *   仅对实时快讯源（如 BlockBeats）传 true，SSR/API 源应保持 false
+ *   以避免将旧文章误标记为"今天"
  */
-function extractTimestamp(text) {
+function extractTimestamp(text, allowTimeOnly = false) {
   if (!text) return 0;
 
   // 1. 优先尝试完整的日期格式 (YYYY-MM-DD 或 YYYY/MM/DD 或 DD.MM.YYYY)
@@ -89,36 +94,62 @@ function extractTimestamp(text) {
     }
   }
 
-  // 2. HH:MM（当天时间）- 仅当没有找到日期时尝试，且必须符合 HH:MM 格式
-  const timeMatch = text.match(/(\d{1,2}):(\d{2})/);
-  if (timeMatch) {
-    const now = new Date();
-    const d   = new Date(
-      now.getFullYear(), now.getMonth(), now.getDate(),
-      parseInt(timeMatch[1]), parseInt(timeMatch[2])
-    );
-    let ts = d.getTime();
-    // 未来时间说明是昨天
-    if (ts > Date.now() + 3_600_000) ts -= 86_400_000;
-    return ts;
+  // 2. 相对时间（如 "3 hours ago"、"2 days ago"、"更新于 5 小时前"）
+  const relTs = parseRelativeTime(text);
+  if (relTs > 0) return relTs;
+
+  // 3. HH:MM（当天时间）— 仅在 allowTimeOnly=true 时启用
+  //    避免 SSR 页面旧文章因提取到 HH:MM 被误标为"今天"
+  if (allowTimeOnly) {
+    const timeMatch = text.match(/(\d{1,2}):(\d{2})/);
+    if (timeMatch) {
+      const now = new Date();
+      const d   = new Date(
+        now.getFullYear(), now.getMonth(), now.getDate(),
+        parseInt(timeMatch[1]), parseInt(timeMatch[2])
+      );
+      let ts = d.getTime();
+      // 未来时间说明是昨天
+      if (ts > Date.now() + 3_600_000) ts -= 86_400_000;
+      return ts;
+    }
   }
 
   return 0;
 }
 
 /**
- * "相对时间" → 时间戳（如 "3 hours ago"）
+ * "相对时间" → 时间戳
+ * 支持英文 "3 hours ago" 和中文 "3小时前"、"更新于 2 天前"
  */
 function parseRelativeTime(text) {
   if (!text) return 0;
-  const m = text.match(/(\d+)\s*(hour|minute|day)s?\s*ago/i);
-  if (!m) return 0;
-  const num  = parseInt(m[1]);
-  const unit = m[2].toLowerCase();
-  const now  = Date.now();
-  if (unit.startsWith('minute')) return now - num * 60_000;
-  if (unit.startsWith('hour'))   return now - num * 3_600_000;
-  if (unit.startsWith('day'))    return now - num * 86_400_000;
+  const now = Date.now();
+
+  // 英文: "3 hours ago", "1 day ago", "30 minutes ago"
+  const enMatch = text.match(/(\d+)\s*(hour|minute|day|week|month)s?\s*ago/i);
+  if (enMatch) {
+    const num  = parseInt(enMatch[1]);
+    const unit = enMatch[2].toLowerCase();
+    if (unit.startsWith('minute')) return now - num * 60_000;
+    if (unit.startsWith('hour'))   return now - num * 3_600_000;
+    if (unit.startsWith('day'))    return now - num * 86_400_000;
+    if (unit.startsWith('week'))   return now - num * 7 * 86_400_000;
+    if (unit.startsWith('month'))  return now - num * 30 * 86_400_000;
+  }
+
+  // 中文: "3小时前"、"2天前"、"30分钟前"、"1周前"
+  const cnMatch = text.match(/(\d+)\s*(分钟|小时|天|日|周|个月)\s*前/);
+  if (cnMatch) {
+    const num  = parseInt(cnMatch[1]);
+    const unit = cnMatch[2];
+    if (unit === '分钟')     return now - num * 60_000;
+    if (unit === '小时')     return now - num * 3_600_000;
+    if (unit === '天' || unit === '日') return now - num * 86_400_000;
+    if (unit === '周')       return now - num * 7 * 86_400_000;
+    if (unit === '个月')     return now - num * 30 * 86_400_000;
+  }
+
   return 0;
 }
 

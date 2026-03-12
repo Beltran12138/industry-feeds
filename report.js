@@ -10,7 +10,7 @@
  */
 
 const { db }                    = require('./db');
-const { filterNewsItems, isReportNoise } = require('./filter');
+const { isReportNoise } = require('./filter');
 const { batchClassify, generateDailySummary, generateWeeklySummary } = require('./ai');
 const { sendReportToWeCom }     = require('./wecom');
 const { createClient }          = require('@supabase/supabase-js');
@@ -143,8 +143,9 @@ async function runDailyReport(dryRun = false) {
     return null;
   }
 
-  // 双层过滤：通用过滤 + 报告噪声过滤
-  let rows = filterNewsItems(rawRows).filter(r => !isReportNoise(r));
+  // 噪声过滤：仅去除报告噪声源（不重新跑完整的 filterNewsItems，
+  // 因为 DB 中的数据已经过滤过，重跑 validateTimestamp 会误删有效条目）
+  let rows = rawRows.filter(r => !isReportNoise(r));
   console.log(`[DailyReport] After filtering: ${rows.length} rows`);
 
   if (rows.length === 0) {
@@ -222,8 +223,8 @@ async function runWeeklyReport(dryRun = false) {
   const endDate   = formatDateBJ(Date.now());
   const rawRows   = await fetchNewsForReport(weekStart);
 
-  // 双层过滤
-  let rows = filterNewsItems(rawRows).filter(r => !isReportNoise(r));
+  // 噪声过滤：仅去除报告噪声源
+  let rows = rawRows.filter(r => !isReportNoise(r));
 
   if (rows.length === 0) {
     console.log('[WeeklyReport] No qualifying news this week.');

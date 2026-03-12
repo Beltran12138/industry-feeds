@@ -50,8 +50,8 @@ function createApp() {
       PORT: 3001, 
       SCRAPE_HIGH_CRON: '*/5 * * * *', 
       SCRAPE_LOW_CRON: '*/30 * * * *', 
-      DAILY_REPORT_CRON: '0 10 * * 1-4', 
-      WEEKLY_REPORT_CRON: '0 10 * * 5' 
+      DAILY_REPORT_CRON: '0 18 * * *', 
+      WEEKLY_REPORT_CRON: '0 18 * * 5' 
     };
   }
 
@@ -187,12 +187,12 @@ function createApp() {
     cron.schedule(SERVER.DAILY_REPORT_CRON, async () => {
       console.log('[CRON] Daily report (18:00 BJT)…');
       try { await runDailyReport(false); } catch (e) { console.error('[CRON] Daily report error:', e.message); }
-    }, { timezone: 'UTC' });
+    }, { timezone: 'Asia/Shanghai' });
 
     cron.schedule(SERVER.WEEKLY_REPORT_CRON, async () => {
       console.log('[CRON] Weekly report (Friday 18:00 BJT)…');
       try { await runWeeklyReport(false); } catch (e) { console.error('[CRON] Weekly report error:', e.message); }
-    }, { timezone: 'UTC' });
+    }, { timezone: 'Asia/Shanghai' });
   }
 
   // ── SPA fallback ────────────────────────────────────────────────────────────
@@ -213,8 +213,8 @@ if (require.main === module) {
     const SERVER_CONFIG = require('./config').SERVER || {};
     console.log(`[SERVER] Scrape HIGH cron : ${SERVER_CONFIG.SCRAPE_HIGH_CRON}`);
     console.log(`[SERVER] Scrape LOW  cron : ${SERVER_CONFIG.SCRAPE_LOW_CRON}`);
-    console.log(`[SERVER] Daily  cron : ${SERVER_CONFIG.DAILY_REPORT_CRON}  (UTC)`);
-    console.log(`[SERVER] Weekly cron : ${SERVER_CONFIG.WEEKLY_REPORT_CRON} (UTC)`);
+    console.log(`[SERVER] Daily  cron : ${SERVER_CONFIG.DAILY_REPORT_CRON}  (Asia/Shanghai)`);
+    console.log(`[SERVER] Weekly cron : ${SERVER_CONFIG.WEEKLY_REPORT_CRON} (Asia/Shanghai)`);
 
     const db = require('./db');
     const current = await db.getNews(1);

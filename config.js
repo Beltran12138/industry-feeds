@@ -195,14 +195,14 @@ const SOURCE_CONFIGS = {
   // 香港合规板块 - 较宽松的时间窗口（消息价值较高）
   'OSL':            { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'Exio':           { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
-  'TechubNews':     { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 48 },
-  'Matrixport':     { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
+  'TechubNews':     { maxAgeHours: 24,  enableStrictTimestamp: true,  dedupMode: 'strict', pushCooldownHours: 48 },
+  'Matrixport':     { maxAgeHours: 24,  enableStrictTimestamp: true,  dedupMode: 'strict', pushCooldownHours: 24 },
   'HashKeyGroup':   { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'HashKeyExchange':{ maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'WuBlock':        { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 48 },
 
   // PRNewswire - 严格时间戳（经常有旧闻混入）
-  'PRNewswire':     { maxAgeHours: 48, enableStrictTimestamp: true, dedupMode: 'strict', pushCooldownHours: 24 },
+  'PRNewswire':     { maxAgeHours: 24, enableStrictTimestamp: true, dedupMode: 'strict', pushCooldownHours: 24 },
 
   // 主流交易所 - 中等严格度
   'Binance':        { maxAgeHours: 48, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
@@ -261,8 +261,8 @@ const SERVER = {
   NEWS_LIMIT_SOURCE: 100,
   SCRAPE_HIGH_CRON: '*/5 * * * *',    // 高频 5 分钟
   SCRAPE_LOW_CRON: '*/30 * * * *',    // 低频 30 分钟
-  DAILY_REPORT_CRON: '0 10 * * 1-4',  // UTC 10:00 = 北京 18:00 (周一至周四)
-  WEEKLY_REPORT_CRON: '0 10 * * 5',   // 每周五 UTC 10:00 = 北京 18:00
+  DAILY_REPORT_CRON: '0 18 * * *',   // 每天北京时间 18:00 (需配合 timezone: Asia/Shanghai)
+  WEEKLY_REPORT_CRON: '0 18 * * 5',   // 每周五北京时间 18:00 (需配合 timezone: Asia/Shanghai)
 };
 
 module.exports = {
