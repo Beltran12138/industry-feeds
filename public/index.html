@@ -460,6 +460,7 @@
                 ) : filteredNews.length === 0 ? (
                   <div className="text-center py-24 text-slate-300 italic font-medium">暂无雷达信号</div>
                 ) : (
+                  <div className="max-w-4xl flex flex-col gap-4">
                     {(() => {
                       let prevDateStr = '';
                       const WEEKS = ['周日','周一','周二','周三','周四','周五','周六'];
@@ -542,6 +543,7 @@
                         );
                       });
                     })()}
+                  </div>
                 )}
               </div>
             )}
