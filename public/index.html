@@ -223,25 +223,14 @@
       const src = source || activeFilter;
       setLoading(true);
       try {
-        const isLocal = ['localhost','127.0.0.1'].includes(window.location.hostname);
-        if (isLocal) {
-          const q = src === 'Important' ? 'important=1' : `source=${src}`;
-          const [dispRes, allRes] = await Promise.all([
-            fetch(`/api/news?${q}&limit=500`),
-            fetch('/api/news?source=All&limit=500'),
-          ]);
-          const [dispData, allData] = await Promise.all([dispRes.json(), allRes.json()]);
-          setDisplayNews(dispData.data || []);
-          setAllNews(allData.data || []);
-        } else {
-          let query = sbClient.from('news').select('*').order('timestamp',{ascending:false}).limit(500);
-          if (src === 'Important') query = query.eq('is_important', 1);
-          else if (src !== 'All')  query = query.eq('source', src);
-          const { data: disp } = await query;
-          setDisplayNews(disp || []);
-          const { data: all } = await sbClient.from('news').select('id,source,is_important').order('timestamp',{ascending:false}).limit(500);
-          setAllNews(all || []);
-        }
+        const q = src === 'Important' ? 'important=1' : `source=${src}`;
+        const [dispRes, allRes] = await Promise.all([
+          fetch(`/api/news?${q}&limit=500`),
+          fetch('/api/news?source=All&limit=500'),
+        ]);
+        const [dispData, allData] = await Promise.all([dispRes.json(), allRes.json()]);
+        setDisplayNews(dispData.data || []);
+        setAllNews(allData.data || []);
         setCountdown(300);
       } catch (err) {
         console.error('[fetch]', err);

@@ -36,3 +36,4 @@ jobs:
           WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
           USE_SUPABASE: true
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+          DASHBOARD_URL: https://alpha-radar-eight.vercel.app
