@@ -53,7 +53,7 @@ const WECOM_BLOCK_SOURCES = new Set([
 
 /** 香港合规板块 — 全量推送 */
 const HK_SOURCES = new Set([
-  'OSL', 'Exio', 'TechubNews', 'Matrixport',
+  'SFC', 'OSL', 'Exio', 'TechubNews', 'Matrixport',
   'HashKeyGroup', 'HashKeyExchange', 'WuBlock',
 ]);
 
@@ -136,7 +136,7 @@ const MIN_TITLE_LENGTH = 8;
 
 /** 需要经过 AI 分类的来源 */
 const AI_SOURCES = new Set([
-  'TechubNews', 'Exio', 'OSL', 'WuBlock', 'PRNewswire', 'HTX', 'MEXC', 'Gate',
+  'SFC', 'TechubNews', 'Exio', 'OSL', 'WuBlock', 'PRNewswire', 'HTX', 'MEXC', 'Gate',
   'Binance', 'OKX', 'Bybit', 'Bitget', 'KuCoin', 'HashKeyGroup', 'HashKeyExchange',
 ]);
 
@@ -189,6 +189,9 @@ const DB = {
  * - pushCooldownHours: 推送冷却时间（小时），同一来源的相似消息在此时间内不重复推送
  */
 const SOURCE_CONFIGS = {
+  // 监管源 - 极高权重，长有效期
+  'SFC':            { maxAgeHours: 168, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 48 },
+
   // 香港合规板块 - 较宽松的时间窗口（消息价值较高）
   'OSL':            { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'Exio':           { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },

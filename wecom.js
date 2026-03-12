@@ -15,18 +15,23 @@ async function sendToWeCom(item) {
     return;
   }
 
-  // 构建消息模板（Markdown 格式，适配企业微信机器人）
+  // 视觉增强：根据评分和影响类型选择 Emoji
+  const scoreEmoji = item.alpha_score >= 90 ? '🔥' : (item.alpha_score >= 70 ? '⭐️' : '📡');
+  const impactEmoji = item.impact === '利好' ? '🟢' : (item.impact === '利空' ? '🔴' : '⚪️');
+  
+  // 构建消息模板
   const content = `
-## 🚨 行业情报快报
+## ${scoreEmoji} Alpha 信号预警
 
 **【${item.business_category || '快讯'}】** ${item.title}
 
-> **详情:** ${item.detail || '暂无详情'}  
-> **来源:** ${item.source}  
-> **链接:** [查看原文](${item.url})
+> **得分:** \`${item.alpha_score || (item.is_important ? 85 : 50)}\` | **影响:** ${impactEmoji} **${item.impact || '待评估'}**
+> **提炼:** ${item.detail || '暂无详情'}
+> **建议:** **${item.bitv_action || '建议保持关注动态'}**
+> **来源:** ${item.source} | [查看原文](${item.url})
 
 ---
-*由 Alpha-Radar 智能抓取并推送*
+*由 Alpha-Radar 战略分析引擎提供支持*
   `.trim();
 
   try {

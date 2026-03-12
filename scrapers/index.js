@@ -48,6 +48,7 @@ const {
   scrapeOKX, scrapeBinance, scrapeHashKeyExchange,
   scrapeTechubNews, scrapeMatrixport, scrapeHashKeyGroup,
   scrapePRNewswire, scrapeTechFlow, scrapeKuCoin, scrapeExio, scrapeHtx,
+  scrapeSFC,
 } = require('./sources/apis');
 
 const {
@@ -58,7 +59,7 @@ const {
 } = require('./sources/puppeteer');
 
 const ALL_SCRAPERS = [
-  scrapeTechFlow, scrapePRNewswire, scrapeBlockBeats, scrapeTwitterKOLs,
+  scrapeSFC, scrapeTechFlow, scrapePRNewswire, scrapeBlockBeats, scrapeTwitterKOLs,
   scrapeOSL, scrapeTechubNews, scrapeOKX, scrapeExio, scrapeMatrixport,
   scrapeWuBlock, scrapeHashKeyGroup, scrapeKuCoin, scrapeHashKeyExchange,
   scrapeBinance, scrapeBybit, scrapeBitget, scrapeMexc,

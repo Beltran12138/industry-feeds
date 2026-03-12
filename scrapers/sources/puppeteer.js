@@ -25,22 +25,20 @@ async function scrapeBlockBeats() {
 
     const items = await page.evaluate(() => {
       const results = [];
-      document.querySelectorAll('.news-flash-item, .newsflash_item, .newsflash-item, [class*="flash-item"]').forEach((el, i) => {
-        const titleEl   = el.querySelector('h3, .title, [class*="title"], .news-flash-item-title');
-        const contentEl = el.querySelector('.content, [class*="content"], .news-flash-item-content, p');
-        const text      = (titleEl ? titleEl.innerText : (contentEl ? contentEl.innerText : '')).trim();
-
-        const itemUrl = el.querySelector('a[href*="/flash/"], a[href*="/news/"]')?.href ||
-                        el.querySelector('a[href*="theblockbeats.info"]')?.href || '';
+      document.querySelectorAll('.news-flash-wrapper').forEach((el) => {
+        const titleLnk = el.querySelector('a.news-flash-title');
+        if (!titleLnk) return;
+        const text = titleLnk.title || titleLnk.innerText.trim();
+        const contentEl = el.querySelector('.news-flash-item-content');
+        const itemUrl = titleLnk.href || '';
 
         if (!text || text.length < 5) return;
         if (!itemUrl || itemUrl.includes('weibo.com') || itemUrl.includes('share.php')) return;
 
-        // 时间解析：优先用页面时间元素，拒绝用 Date.now() 假时间
         let timestamp = 0;
-        const timeEl  = el.querySelector('.time, [class*="time"]');
-        if (timeEl) {
-          const parts = timeEl.innerText.trim().split(':');
+        const timeMatch = titleLnk.innerText.match(/\d{2}:\d{2}/);
+        if (timeMatch) {
+          const parts = timeMatch[0].split(':');
           if (parts.length === 2) {
             const d = new Date();
             d.setHours(parseInt(parts[0]), parseInt(parts[1]), 0, 0);
@@ -48,11 +46,10 @@ async function scrapeBlockBeats() {
             if (timestamp > Date.now()) timestamp -= 86400000;
           }
         }
-        // 严格模式：无时间戳直接跳过，不伪造"刚刚"
         if (!timestamp) return;
 
         results.push({
-          title:   text.substring(0, 150),
+          title:   text.replace(/^\d{2}:\d{2}\s*/, '').substring(0, 150),
           content: contentEl ? contentEl.innerText.trim() : text,
           source:  'BlockBeats',
           url:     itemUrl,

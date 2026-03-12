@@ -366,6 +366,52 @@ async function scrapeHtx() {
   return allItems;
 }
 
+// ── 香港证监会 SFC (Circulars) ────────────────────────────────────────────────
+async function scrapeSFC() {
+  console.log('[Scraper] SFC Circulars...');
+  const url = 'https://www.sfc.hk/tc/Rules-and-standards/Circulars';
+  try {
+    const { data } = await axios.get(url, { 
+      headers: { 'User-Agent': UA, 'Accept-Language': 'zh-CN,zh;q=0.9' },
+      timeout: 20000 
+    });
+    const $ = cheerio.load(data);
+    const items = [];
+    
+    // SFC 的通函列表通常在特定的表格或列表结构中
+    $('.table-row, .list-item, tr').each((_, el) => {
+      const a = $(el).find('a').first();
+      const title = a.text().trim();
+      const href = a.attr('href');
+      
+      if (!title || !href || title.length < 5) return;
+      if (!href.includes('/Circulars/')) return;
+      
+      const fullUrl = href.startsWith('http') ? href : `https://www.sfc.hk${href}`;
+      
+      // 提取日期：SFC 列表通常有一列是日期
+      const dateText = $(el).find('.date, .time, td').first().text().trim();
+      const timestamp = extractTimestamp(dateText) || 0;
+      
+      if (items.find(i => i.url === fullUrl)) return;
+      
+      items.push(makeItem({
+        title: `[SFC通函] ${title}`,
+        source: 'SFC',
+        url: fullUrl,
+        category: 'Regulation',
+        timestamp: timestamp
+      }));
+    });
+    
+    console.log(`[Scraper] SFC: ${items.length}`);
+    return items;
+  } catch (err) {
+    console.error('[SFC]', err.message);
+    return [];
+  }
+}
+
 module.exports = {
   scrapeOKX,
   scrapeBinance,
@@ -378,4 +424,5 @@ module.exports = {
   scrapeKuCoin,
   scrapeExio,
   scrapeHtx,
+  scrapeSFC,
 };

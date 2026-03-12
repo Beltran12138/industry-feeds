@@ -43,6 +43,8 @@ db.exec(`
     normalized_title TEXT,
     content TEXT,
     detail TEXT DEFAULT '',
+    impact TEXT DEFAULT '',
+    bitv_action TEXT DEFAULT '',
     source TEXT NOT NULL,
     url TEXT UNIQUE,
     category TEXT,
@@ -50,6 +52,7 @@ db.exec(`
     competitor_category TEXT DEFAULT '',
     timestamp INTEGER,
     is_important INTEGER DEFAULT 0,
+    alpha_score INTEGER DEFAULT 0,
     sent_to_wecom INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -63,6 +66,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_timestamp       ON news(timestamp DESC);
   CREATE INDEX IF NOT EXISTS idx_source          ON news(source);
   CREATE INDEX IF NOT EXISTS idx_is_important    ON news(is_important);
+  CREATE INDEX IF NOT EXISTS idx_alpha_score     ON news(alpha_score);
   CREATE INDEX IF NOT EXISTS idx_business_cat    ON news(business_category);
   CREATE INDEX IF NOT EXISTS idx_sent_wecom      ON news(sent_to_wecom);
   CREATE UNIQUE INDEX IF NOT EXISTS idx_title_source ON news(title, source);
@@ -74,32 +78,40 @@ db.exec(`
 const existingCols = db.prepare('PRAGMA table_info(news)').all().map(c => c.name);
 const migrations = [
   ['detail',               "ALTER TABLE news ADD COLUMN detail TEXT DEFAULT ''"],
+  ['impact',               "ALTER TABLE news ADD COLUMN impact TEXT DEFAULT ''"],
+  ['bitv_action',          "ALTER TABLE news ADD COLUMN bitv_action TEXT DEFAULT ''"],
   ['business_category',    "ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''"],
   ['competitor_category',  "ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''"],
   ['sent_to_wecom',        'ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0'],
+  ['alpha_score',          'ALTER TABLE news ADD COLUMN alpha_score INTEGER DEFAULT 0'],
   ['normalized_title',     "ALTER TABLE news ADD COLUMN normalized_title TEXT DEFAULT ''; CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title)"],
 ];
 migrations.forEach(([col, sql]) => {
-  if (!existingCols.includes(col)) { db.exec(sql); console.log(`[DB] Migrated: +${col}`); }
+  if (!existingCols.includes(col)) { 
+    try { db.exec(sql); console.log(`[DB] Migrated: +${col}`); } catch(e) { console.error(`[DB] Migration failed for ${col}:`, e.message); }
+  }
 });
 
 // ── 预编译 SQL（性能优化）────────────────────────────────────────────────────
 const STMT = {
   insert: db.prepare(`
     INSERT INTO news
-      (title, normalized_title, content, detail, source, url, category,
-       business_category, competitor_category, timestamp, is_important, sent_to_wecom)
+      (title, normalized_title, content, detail, impact, bitv_action, source, url, category,
+       business_category, competitor_category, timestamp, is_important, alpha_score, sent_to_wecom)
     VALUES
-      (@title, @normalized_title, @content, @detail, @source, @url, @category,
-       @business_category, @competitor_category, @timestamp, @is_important, @sent_to_wecom)
+      (@title, @normalized_title, @content, @detail, @impact, @bitv_action, @source, @url, @category,
+       @business_category, @competitor_category, @timestamp, @is_important, @alpha_score, @sent_to_wecom)
     ON CONFLICT(title, source) DO UPDATE SET
       url                 = CASE WHEN excluded.url != '' THEN excluded.url ELSE news.url END,
       normalized_title    = excluded.normalized_title,
       is_important        = MAX(news.is_important, excluded.is_important),
+      alpha_score         = MAX(news.alpha_score, excluded.alpha_score),
       sent_to_wecom       = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
       business_category   = CASE WHEN excluded.business_category != '' THEN excluded.business_category ELSE news.business_category END,
       competitor_category = CASE WHEN excluded.competitor_category != '' THEN excluded.competitor_category ELSE news.competitor_category END,
       detail              = CASE WHEN excluded.detail != ''              THEN excluded.detail             ELSE news.detail END,
+      impact              = CASE WHEN excluded.impact != ''              THEN excluded.impact             ELSE news.impact END,
+      bitv_action         = CASE WHEN excluded.bitv_action != ''          THEN excluded.bitv_action        ELSE news.bitv_action END,
       timestamp           = news.timestamp,   -- 保留首次入库时间
       created_at          = news.created_at
   `),

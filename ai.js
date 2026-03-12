@@ -53,7 +53,8 @@ async function callDeepSeek(messages, { temperature = 0.1, max_tokens = 2000, js
 
 // ── 单条新闻分类 ──────────────────────────────────────────────────────────────
 async function processWithAI(title, content = '') {
-  const prompt = `你是一个加密货币行业资深分析师。请对以下快讯进行分类和提炼。
+  const prompt = `你是一个加密货币行业顶级战略分析师，专注于香港 Web3 监管与合规市场。
+请对以下快讯进行深度分析。
 
 快讯内容：
 标题: ${title}
@@ -62,18 +63,25 @@ async function processWithAI(title, content = '') {
 请输出 JSON 对象（不含 Markdown），包含：
 1. business_category: 从 [${CAT_OPTIONS}] 中选一个
 2. competitor_category: 从 [${COMP_OPTIONS}] 中选一个
-3. detail: 一句话（≤80字）总结核心内容，文风专业干练
-4. is_important: 满足以下任一条件返回 1，否则返回 0：
-   - 涉及香港 HK 监管/牌照/业务进展
-   - 主流交易所（Binance/OKX/Bybit/HTX/Gate/Bitget）重大动作（监管处罚/高层变动/重大收购），排除普通上币
-   - 香港合规所（HashKey/OSL）任何官方消息
-   - 对行业具有重大战略参考价值
+3. detail: 一句话精炼总结（≤80字）
+4. alpha_score: 0-100 的情报价值评分：
+   - 90-100: 极高。涉及 SFC 政策突发变更、重要牌照获批/撤回、核心高管变动、主流交易所重大合规处罚。
+   - 70-89: 高。香港市场重要业务进展、RWA/稳定币新规落地、头部所战略调整。
+   - 40-69: 中。普通业务上线、常规行业新闻。
+   - <40: 低。常规市场波动、KOL 言论、重复性快讯。
+5. impact: "利好", "利空", 或 "中性"（站在香港合规所 BitV 的立场）
+6. bitv_action: 针对此情报，BitV 应该采取的 1 条具体动作建议（如：对标分析、更新合规手册、调整公关话术等）
 
-示例：{"business_category":"RWA","competitor_category":"香港合规所","detail":"HashKey Group 推出 RWA 一站式发行解决方案。","is_important":1}`;
+示例：{"business_category":"合规","competitor_category":"香港合规所","detail":"HashKey 获准向零售用户提供服务。","alpha_score":95,"impact":"利空","bitv_action":"立即调研其零售开户流程，评估对我司获客策略的冲击。"}`;
 
   const text = await callDeepSeek([{ role: 'user', content: prompt }], { json: true });
   if (!text) return null;
-  try { return JSON.parse(text); } catch (_) { return null; }
+  try {
+    const parsed = JSON.parse(text);
+    // 向后兼容 is_important 字段，分值 >= 85 视为 1
+    parsed.is_important = parsed.alpha_score >= 85 ? 1 : 0;
+    return parsed;
+  } catch (_) { return null; }
 }
 
 // ── 批量分类（周报前补充未分类条目）─────────────────────────────────────────

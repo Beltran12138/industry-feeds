@@ -47,14 +47,14 @@ async function fetchNewsForReport(since, limit = 500) {
       .from('news')
       .select('*')
       .gte('timestamp', since)
-      .order('is_important', { ascending: false })
+      .order('alpha_score', { ascending: false })
       .order('timestamp',    { ascending: false })
       .limit(limit);
     if (error) { console.error('[Report] Supabase error:', error.message); return []; }
     return data || [];
   }
   return db.prepare(
-    'SELECT * FROM news WHERE timestamp > ? ORDER BY is_important DESC, timestamp DESC LIMIT ?'
+    'SELECT * FROM news WHERE timestamp > ? ORDER BY alpha_score DESC, timestamp DESC LIMIT ?'
   ).all(since, limit);
 }
 
@@ -82,6 +82,9 @@ async function fillMissingCategories(rows) {
         business_category:   aiResult.business_category   || item.business_category,
         competitor_category: aiResult.competitor_category || item.competitor_category,
         detail:              aiResult.detail              || item.detail,
+        alpha_score:         aiResult.alpha_score         || item.alpha_score,
+        impact:              aiResult.impact              || item.impact,
+        bitv_action:         aiResult.bitv_action         || item.bitv_action,
         is_important:        aiResult.is_important        ?? item.is_important,
       });
     }
@@ -119,9 +122,9 @@ async function runDailyReport(dryRun = false) {
   // 补充分类
   rows = await fillMissingCategories(rows);
 
-  // 重要条目列表（有 detail）
+  // 重要条目列表（权重优先）
   const importantItems = rows
-    .filter(r => r.is_important === 1 && r.detail?.length > 5)
+    .filter(r => (r.alpha_score >= 70 || r.is_important === 1) && r.detail?.length > 5)
     .slice(0, REPORT.DAILY_IMPORTANT_TOP);
 
   const categorized = {};
@@ -140,22 +143,26 @@ async function runDailyReport(dryRun = false) {
     const items = categorized[cat];
     newsList += `\n**${cat}** (${items.length})\n`;
     items.forEach((item, i) => {
+      const scoreEmoji = item.alpha_score >= 90 ? '🔥' : (item.alpha_score >= 70 ? '⭐️' : '📡');
+      const impactLabel = item.impact ? `[${item.impact}]` : '';
       const comp = item.competitor_category ? ` \`${item.competitor_category}\`` : '';
-      newsList += `${i + 1}. ${item.title}${comp}\n`;
-      if (item.detail) newsList += `> ${item.detail}\n`;
+      
+      newsList += `${i + 1}. ${scoreEmoji}${item.title}${comp} \`${item.alpha_score || ''}\` ${impactLabel}\n`;
+      if (item.detail) newsList += `   > ${item.detail}\n`;
+      if (item.bitv_action) newsList += `   > 💡 **建议:** ${item.bitv_action}\n`;
     });
   });
 
   // AI 总结
-  const aiInput   = rows.filter(r => r.detail || r.is_important === 1);
+  const aiInput   = rows.filter(r => r.detail || r.alpha_score >= 70);
   const aiSummary = await generateDailySummary(aiInput.length ? aiInput : rows.slice(0, 30));
 
   // 组装报告
   let report = `📋 **Alpha-Radar 行业日报 | ${dateStr}**\n\n`;
   report    += buildStatsPanel(rows, '今日') + '\n\n';
   if (aiSummary) report += `---\n\n${aiSummary}\n\n`;
-  if (newsList.trim()) report += `---\n\n🔍 **重点动态**\n${newsList}\n`;
-  report    += `\n---\n*Alpha-Radar 自动生成 | ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}*`;
+  if (newsList.trim()) report += `---\n\n🔍 **重点动态分析**\n${newsList}\n`;
+  report    += `\n---\n*Alpha-Radar 战略分析引擎 | ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}*`;
 
   if (dryRun) {
     console.log('\n=== DAILY REPORT (DRY RUN) ===\n', report, '\n=== END ===\n');
@@ -187,22 +194,22 @@ async function runWeeklyReport(dryRun = false) {
 
   console.log(`[WeeklyReport] ${rawRows.length} raw → ${rows.length} after filter`);
 
-  // 补充分类（核心改进：消灭"其他 650条"现象）
+  // 补充分类
   rows = await fillMissingCategories(rows);
 
   // 统计
   const stats = {
     total:      rows.length,
-    important:  rows.filter(r => r.is_important === 1).length,
+    important:  rows.filter(r => r.alpha_score >= 70).length,
     sources:    new Set(rows.map(r => r.source)).size,
     categories: new Set(rows.filter(r => r.business_category).map(r => r.business_category)).size,
   };
 
-  // AI 周报（含精选 + 竞品维度组织）
-  const aiInput   = rows.filter(r => r.is_important === 1 || r.detail?.length > 5);
+  // AI 周报
+  const aiInput   = rows.filter(r => r.alpha_score >= 70 || r.detail?.length > 5);
   const aiSummary = await generateWeeklySummary(aiInput.length >= 5 ? aiInput : rows.slice(0, 80), stats);
 
-  // 按分类汇总附录（补充细节，每类最多 WEEKLY_TOP_PER_CAT 条）
+  // 按分类汇总附录
   const categorized = {};
   rows.forEach(item => {
     const cat = item.business_category || '其他';
@@ -219,11 +226,15 @@ async function runWeeklyReport(dryRun = false) {
     const items    = categorized[cat];
     const topItems = items.filter(i => i.detail?.length > 5).slice(0, REPORT.WEEKLY_TOP_PER_CAT);
     if (topItems.length === 0) return;
-    appendix += `\n**${cat}** (共 ${items.length} 条，精选 ${topItems.length} 条)\n`;
+    appendix += `\n**${cat}** (共 ${items.length} 条)\n`;
     topItems.forEach((item, i) => {
+      const scoreEmoji = item.alpha_score >= 90 ? '🔥' : (item.alpha_score >= 70 ? '⭐️' : '');
+      const impactLabel = item.impact ? `[${item.impact}]` : '';
       const comp = item.competitor_category ? ` \`${item.competitor_category}\`` : '';
-      appendix += `${i + 1}. ${item.title}${comp}\n`;
+      
+      appendix += `${i + 1}. ${scoreEmoji}${item.title}${comp} \`${item.alpha_score || ''}\` ${impactLabel}\n`;
       appendix += `   > ${item.detail}\n`;
+      if (item.bitv_action) appendix += `   > 💡 **分析:** ${item.bitv_action}\n`;
     });
   });
 
@@ -231,8 +242,8 @@ async function runWeeklyReport(dryRun = false) {
   let report = `📰 **Alpha-Radar 行业周报 | ${startDate} ~ ${endDate}**\n\n`;
   report    += buildStatsPanel(rows, '本周') + '\n\n';
   if (aiSummary) report += `---\n\n${aiSummary}\n\n`;
-  if (appendix.trim()) report += `---\n\n📌 **本周分类详情**\n${appendix}\n`;
-  report    += `\n---\n*Alpha-Radar 自动生成 | ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}*`;
+  if (appendix.trim()) report += `---\n\n📌 **本周分类策略详情**\n${appendix}\n`;
+  report    += `\n---\n*Alpha-Radar 战略分析引擎 | ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}*`;
 
   if (dryRun) {
     console.log('\n=== WEEKLY REPORT (DRY RUN) ===\n', report, '\n=== END ===\n');
