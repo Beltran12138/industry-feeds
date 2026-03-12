@@ -53,6 +53,7 @@ async function fetchNewsForReport(since, limit = 500) {
     if (error) { console.error('[Report] Supabase error:', error.message); return []; }
     return data || [];
   }
+  if (!db) return [];
   return db.prepare(
     'SELECT * FROM news WHERE timestamp > ? ORDER BY alpha_score DESC, timestamp DESC LIMIT ?'
   ).all(since, limit);

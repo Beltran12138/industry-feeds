@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 puppeteerExtra.use(StealthPlugin());
-const { saveNews, db, getAlreadyProcessed, updateSentStatus, normalizeKey, updateSourcePush, canPushMessage } = require('./db');
+const { saveNews, db, getAlreadyProcessed, updateSentStatus, normalizeKey, updateSourcePush, canPushMessage, checkIfSent } = require('./db');
 const { processWithAI } = require('./ai');
 const { sendToWeCom } = require('./wecom');
 const { filterNewsItems, getSourceConfig } = require('./filter');
@@ -1331,7 +1331,7 @@ async function runAllScrapers() {
       const sourceConfig = getSourceConfig(item.source);
       
       // 检查源级别冷却时间
-      if (!canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours)) {
+      if (!(await canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours))) {
         console.log(`  [SKIP COOLDOWN] ${item.source}: 冷却期内 (${sourceConfig.pushCooldownHours}h): ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
         await saveNews([item]).catch(e => console.warn('[Save skip cooldown]', e.message));
@@ -1359,15 +1359,10 @@ async function runAllScrapers() {
       }
       pushLock.add(lockKey);
 
-      // 发送前最后一次实时数据库校验（使用事务确保一致性）
-      let dbCheck = null;
-      try {
-        dbCheck = db.prepare('SELECT sent_to_wecom FROM news WHERE (url = ? OR normalized_title = ?) AND sent_to_wecom = 1').get(item.url, nTitle);
-      } catch (e) {
-        console.warn(`  [DB Check Error] ${item.title.substring(0, 40)}:`, e.message);
-      }
+      // 发送前最后一次实时数据库校验
+      const isActuallySent = await checkIfSent(item.url, nTitle);
 
-      if (dbCheck) {
+      if (isActuallySent) {
         console.log(`  [SKIP] 数据库记录显示已发送: ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
         await saveNews([item]).catch(e => console.warn('[Save dbCheck]', e.message));
@@ -1383,21 +1378,26 @@ async function runAllScrapers() {
         item.sent_to_wecom = 1;
         sentThisRun.add(nTitle);
 
-        // 使用事务确保状态更新原子性
-        const updateTx = db.transaction(() => {
-          if (item.url) {
-            db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE url = ?`).run(item.url);
-          }
-          db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?`).run(item.title, item.source);
-          db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE normalized_title = ? AND source = ?`).run(nTitle, item.source);
-        });
-        updateTx();
+        // 如果是 SQLite 模式，本地更新状态
+        if (db) {
+          try {
+            const updateTx = db.transaction(() => {
+              if (item.url) {
+                db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE url = ?`).run(item.url);
+              }
+              db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE title = ? AND source = ?`).run(item.title, item.source);
+              db.prepare(`UPDATE news SET sent_to_wecom = 1 WHERE normalized_title = ? AND source = ?`).run(nTitle, item.source);
+            });
+            updateTx();
+          } catch (_) {}
+        }
 
         // 数据库状态更新后再发送消息
         await sendToWeCom(item);
-        
-        // ✅ 新增：更新源追踪信息（记录最后推送的消息和时间）
-        updateSourcePush(item.source, item.timestamp, item.title);
+
+        // ✅ 新增：更新源追踪信息（记录最后推送的消息 and 时间）
+        await updateSourcePush(item.source, item.timestamp, item.title);
+
 
         // 异步更新 Supabase（如果启用）
         updateSentStatus(item).catch(err => {

@@ -1,0 +1,303 @@
+﻿scrape	Set up job	锘?026-03-12T07:11:13.9426855Z Current runner version: '2.332.0'
+scrape	Set up job	2026-03-12T07:11:13.9453072Z ##[group]Runner Image Provisioner
+scrape	Set up job	2026-03-12T07:11:13.9454081Z Hosted Compute Agent
+scrape	Set up job	2026-03-12T07:11:13.9454671Z Version: 20260213.493
+scrape	Set up job	2026-03-12T07:11:13.9455351Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+scrape	Set up job	2026-03-12T07:11:13.9456483Z Build Date: 2026-02-13T00:28:41Z
+scrape	Set up job	2026-03-12T07:11:13.9457161Z Worker ID: {d8f660f0-7d46-401b-9fc6-ef5519cbb8ac}
+scrape	Set up job	2026-03-12T07:11:13.9457923Z Azure Region: centralus
+scrape	Set up job	2026-03-12T07:11:13.9458451Z ##[endgroup]
+scrape	Set up job	2026-03-12T07:11:13.9459903Z ##[group]Operating System
+scrape	Set up job	2026-03-12T07:11:13.9460613Z Ubuntu
+scrape	Set up job	2026-03-12T07:11:13.9461160Z 24.04.3
+scrape	Set up job	2026-03-12T07:11:13.9461651Z LTS
+scrape	Set up job	2026-03-12T07:11:13.9462237Z ##[endgroup]
+scrape	Set up job	2026-03-12T07:11:13.9462728Z ##[group]Runner Image
+scrape	Set up job	2026-03-12T07:11:13.9463294Z Image: ubuntu-24.04
+scrape	Set up job	2026-03-12T07:11:13.9463955Z Version: 20260302.42.1
+scrape	Set up job	2026-03-12T07:11:13.9464987Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260302.42/images/ubuntu/Ubuntu2404-Readme.md
+scrape	Set up job	2026-03-12T07:11:13.9466990Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260302.42
+scrape	Set up job	2026-03-12T07:11:13.9467947Z ##[endgroup]
+scrape	Set up job	2026-03-12T07:11:13.9469189Z ##[group]GITHUB_TOKEN Permissions
+scrape	Set up job	2026-03-12T07:11:13.9471049Z Contents: read
+scrape	Set up job	2026-03-12T07:11:13.9471681Z Metadata: read
+scrape	Set up job	2026-03-12T07:11:13.9472259Z Packages: read
+scrape	Set up job	2026-03-12T07:11:13.9472826Z ##[endgroup]
+scrape	Set up job	2026-03-12T07:11:13.9475062Z Secret source: Actions
+scrape	Set up job	2026-03-12T07:11:13.9476328Z Prepare workflow directory
+scrape	Set up job	2026-03-12T07:11:13.9814880Z Prepare all required actions
+scrape	Set up job	2026-03-12T07:11:13.9853072Z Getting action download info
+scrape	Set up job	2026-03-12T07:11:14.3591301Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+scrape	Set up job	2026-03-12T07:11:14.5161972Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+scrape	Set up job	2026-03-12T07:11:14.7458274Z Complete job name: scrape
+scrape	Checkout code	锘?026-03-12T07:11:14.8194994Z ##[group]Run actions/checkout@v4
+scrape	Checkout code	2026-03-12T07:11:14.8196150Z with:
+scrape	Checkout code	2026-03-12T07:11:14.8196681Z   repository: Beltran12138/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:14.8197455Z   token: ***
+scrape	Checkout code	2026-03-12T07:11:14.8197897Z   ssh-strict: true
+scrape	Checkout code	2026-03-12T07:11:14.8198369Z   ssh-user: git
+scrape	Checkout code	2026-03-12T07:11:14.8198821Z   persist-credentials: true
+scrape	Checkout code	2026-03-12T07:11:14.8199317Z   clean: true
+scrape	Checkout code	2026-03-12T07:11:14.8199784Z   sparse-checkout-cone-mode: true
+scrape	Checkout code	2026-03-12T07:11:14.8200340Z   fetch-depth: 1
+scrape	Checkout code	2026-03-12T07:11:14.8200803Z   fetch-tags: false
+scrape	Checkout code	2026-03-12T07:11:14.8201272Z   show-progress: true
+scrape	Checkout code	2026-03-12T07:11:14.8201746Z   lfs: false
+scrape	Checkout code	2026-03-12T07:11:14.8202175Z   submodules: false
+scrape	Checkout code	2026-03-12T07:11:14.8202639Z   set-safe-directory: true
+scrape	Checkout code	2026-03-12T07:11:14.8203373Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:14.9337290Z Syncing repository: Beltran12138/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:14.9339200Z ##[group]Getting Git version info
+scrape	Checkout code	2026-03-12T07:11:14.9340699Z Working directory is '/home/runner/work/industry-feeds/industry-feeds'
+scrape	Checkout code	2026-03-12T07:11:14.9342999Z [command]/usr/bin/git version
+scrape	Checkout code	2026-03-12T07:11:14.9413923Z git version 2.53.0
+scrape	Checkout code	2026-03-12T07:11:14.9441438Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:14.9466633Z Temporarily overriding HOME='/home/runner/work/_temp/75775483-c238-4e02-985d-b7423a0238ff' before making global git config changes
+scrape	Checkout code	2026-03-12T07:11:14.9469386Z Adding repository directory to the temporary git global config as a safe directory
+scrape	Checkout code	2026-03-12T07:11:14.9473597Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/industry-feeds/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:14.9516063Z Deleting the contents of '/home/runner/work/industry-feeds/industry-feeds'
+scrape	Checkout code	2026-03-12T07:11:14.9519911Z ##[group]Initializing the repository
+scrape	Checkout code	2026-03-12T07:11:14.9525160Z [command]/usr/bin/git init /home/runner/work/industry-feeds/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:14.9625264Z hint: Using 'master' as the name for the initial branch. This default branch name
+scrape	Checkout code	2026-03-12T07:11:14.9626563Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+scrape	Checkout code	2026-03-12T07:11:14.9628390Z hint: to use in all of your new repositories, which will suppress this warning,
+scrape	Checkout code	2026-03-12T07:11:14.9630219Z hint: call:
+scrape	Checkout code	2026-03-12T07:11:14.9631097Z hint:
+scrape	Checkout code	2026-03-12T07:11:14.9632044Z hint: 	git config --global init.defaultBranch <name>
+scrape	Checkout code	2026-03-12T07:11:14.9633079Z hint:
+scrape	Checkout code	2026-03-12T07:11:14.9633732Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+scrape	Checkout code	2026-03-12T07:11:14.9634729Z hint: 'development'. The just-created branch can be renamed via this command:
+scrape	Checkout code	2026-03-12T07:11:14.9635790Z hint:
+scrape	Checkout code	2026-03-12T07:11:14.9636302Z hint: 	git branch -m <name>
+scrape	Checkout code	2026-03-12T07:11:14.9636815Z hint:
+scrape	Checkout code	2026-03-12T07:11:14.9637500Z hint: Disable this message with "git config set advice.defaultBranchName false"
+scrape	Checkout code	2026-03-12T07:11:14.9638677Z Initialized empty Git repository in /home/runner/work/industry-feeds/industry-feeds/.git/
+scrape	Checkout code	2026-03-12T07:11:14.9649935Z [command]/usr/bin/git remote add origin https://github.com/Beltran12138/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:14.9693700Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:14.9694591Z ##[group]Disabling automatic garbage collection
+scrape	Checkout code	2026-03-12T07:11:14.9695619Z [command]/usr/bin/git config --local gc.auto 0
+scrape	Checkout code	2026-03-12T07:11:14.9728041Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:14.9729145Z ##[group]Setting up auth
+scrape	Checkout code	2026-03-12T07:11:14.9738819Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+scrape	Checkout code	2026-03-12T07:11:14.9776014Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+scrape	Checkout code	2026-03-12T07:11:15.0158589Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+scrape	Checkout code	2026-03-12T07:11:15.0198271Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+scrape	Checkout code	2026-03-12T07:11:15.0439469Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+scrape	Checkout code	2026-03-12T07:11:15.0474722Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+scrape	Checkout code	2026-03-12T07:11:15.0727940Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+scrape	Checkout code	2026-03-12T07:11:15.0765164Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:15.0766988Z ##[group]Fetching the repository
+scrape	Checkout code	2026-03-12T07:11:15.0775960Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +8ccefb06ee181fd2b35a8968ca9fde295fa8646a:refs/remotes/origin/master
+scrape	Checkout code	2026-03-12T07:11:15.4641357Z From https://github.com/Beltran12138/industry-feeds
+scrape	Checkout code	2026-03-12T07:11:15.4643060Z  * [new ref]         8ccefb06ee181fd2b35a8968ca9fde295fa8646a -> origin/master
+scrape	Checkout code	2026-03-12T07:11:15.4677137Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:15.4678520Z ##[group]Determining the checkout info
+scrape	Checkout code	2026-03-12T07:11:15.4680535Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:15.4684075Z [command]/usr/bin/git sparse-checkout disable
+scrape	Checkout code	2026-03-12T07:11:15.4736328Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+scrape	Checkout code	2026-03-12T07:11:15.4764484Z ##[group]Checking out the ref
+scrape	Checkout code	2026-03-12T07:11:15.4767531Z [command]/usr/bin/git checkout --progress --force -B master refs/remotes/origin/master
+scrape	Checkout code	2026-03-12T07:11:15.4847546Z Reset branch 'master'
+scrape	Checkout code	2026-03-12T07:11:15.4850183Z branch 'master' set up to track 'origin/master'.
+scrape	Checkout code	2026-03-12T07:11:15.4856894Z ##[endgroup]
+scrape	Checkout code	2026-03-12T07:11:15.4891494Z [command]/usr/bin/git log -1 --format=%H
+scrape	Checkout code	2026-03-12T07:11:15.4914242Z 8ccefb06ee181fd2b35a8968ca9fde295fa8646a
+scrape	Setup Node.js	锘?026-03-12T07:11:15.5233118Z ##[group]Run actions/setup-node@v4
+scrape	Setup Node.js	2026-03-12T07:11:15.5234311Z with:
+scrape	Setup Node.js	2026-03-12T07:11:15.5235152Z   node-version: 20
+scrape	Setup Node.js	2026-03-12T07:11:15.5236233Z   cache: npm
+scrape	Setup Node.js	2026-03-12T07:11:15.5237126Z   always-auth: false
+scrape	Setup Node.js	2026-03-12T07:11:15.5238096Z   check-latest: false
+scrape	Setup Node.js	2026-03-12T07:11:15.5239336Z   token: ***
+scrape	Setup Node.js	2026-03-12T07:11:15.5240208Z ##[endgroup]
+scrape	Setup Node.js	2026-03-12T07:11:15.7299703Z Found in cache @ /opt/hostedtoolcache/node/20.20.0/x64
+scrape	Setup Node.js	2026-03-12T07:11:15.7307456Z ##[group]Environment details
+scrape	Setup Node.js	2026-03-12T07:11:17.8654736Z node: v20.20.0
+scrape	Setup Node.js	2026-03-12T07:11:17.8655377Z npm: 10.8.2
+scrape	Setup Node.js	2026-03-12T07:11:17.8656278Z yarn: 1.22.22
+scrape	Setup Node.js	2026-03-12T07:11:17.8657685Z ##[endgroup]
+scrape	Setup Node.js	2026-03-12T07:11:17.8679251Z [command]/opt/hostedtoolcache/node/20.20.0/x64/bin/npm config get cache
+scrape	Setup Node.js	2026-03-12T07:11:18.1435253Z /home/runner/.npm
+scrape	Setup Node.js	2026-03-12T07:11:18.3513021Z Cache hit for: node-cache-Linux-x64-npm-8dd34a6654ed78cb8050d01fcd1811c4ab2f46374a5fcbe51726ec3e758d9607
+scrape	Setup Node.js	2026-03-12T07:11:19.0345189Z Received 15064166 of 15064166 (100.0%), 28.8 MBs/sec
+scrape	Setup Node.js	2026-03-12T07:11:19.0346662Z Cache Size: ~14 MB (15064166 B)
+scrape	Setup Node.js	2026-03-12T07:11:19.0376757Z [command]/usr/bin/tar -xf /home/runner/work/_temp/ab9f1005-5710-489d-962d-f0bc5d18514f/cache.tzst -P -C /home/runner/work/industry-feeds/industry-feeds --use-compress-program unzstd
+scrape	Setup Node.js	2026-03-12T07:11:19.1238413Z Cache restored successfully
+scrape	Setup Node.js	2026-03-12T07:11:19.1275855Z Cache restored from key: node-cache-Linux-x64-npm-8dd34a6654ed78cb8050d01fcd1811c4ab2f46374a5fcbe51726ec3e758d9607
+scrape	Install dependencies	锘?026-03-12T07:11:19.1426696Z ##[group]Run npm install
+scrape	Install dependencies	2026-03-12T07:11:19.1427038Z [36;1mnpm install[0m
+scrape	Install dependencies	2026-03-12T07:11:19.1488101Z shell: /usr/bin/bash -e {0}
+scrape	Install dependencies	2026-03-12T07:11:19.1488431Z ##[endgroup]
+scrape	Install dependencies	2026-03-12T07:11:21.4909164Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+scrape	Install dependencies	2026-03-12T07:11:21.5325175Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+scrape	Install dependencies	2026-03-12T07:11:21.5468860Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+scrape	Install dependencies	2026-03-12T07:11:21.5907843Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+scrape	Install dependencies	2026-03-12T07:11:21.6345039Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+scrape	Install dependencies	2026-03-12T07:11:28.1270146Z 
+scrape	Install dependencies	2026-03-12T07:11:28.1272259Z added 275 packages, and audited 276 packages in 9s
+scrape	Install dependencies	2026-03-12T07:11:28.1274327Z 
+scrape	Install dependencies	2026-03-12T07:11:28.1274775Z 61 packages are looking for funding
+scrape	Install dependencies	2026-03-12T07:11:28.1275766Z   run `npm fund` for details
+scrape	Install dependencies	2026-03-12T07:11:28.1282480Z 
+scrape	Install dependencies	2026-03-12T07:11:28.1282961Z found 0 vulnerabilities
+scrape	Install Chromium and Tor	锘?026-03-12T07:11:28.1566668Z ##[group]Run sudo apt-get update && sudo apt-get install -y google-chrome-stable tor
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.1567342Z [36;1msudo apt-get update && sudo apt-get install -y google-chrome-stable tor[0m
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.1567804Z [36;1msudo service tor start[0m
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.1568142Z [36;1mecho "Tor started (circuits establish during scraping)"[0m
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.1616994Z shell: /usr/bin/bash -e {0}
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.1617315Z ##[endgroup]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.2870474Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3319744Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3324587Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3330914Z Get:6 https://packages.microsoft.com/repos/azure-cli noble InRelease [3564 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3424275Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3484517Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.3540866Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5278331Z Get:8 https://packages.microsoft.com/repos/azure-cli noble/main amd64 Packages [2072 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5831894Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1807 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5953059Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [332 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5973475Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [178 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5989662Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 c-n-f Metadata [16.7 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.5999469Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1566 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6096366Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [319 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6125054Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [386 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6152166Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 c-n-f Metadata [32.9 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6162032Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [2748 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6309735Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [632 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6489610Z Get:22 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [101 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6558081Z Get:23 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [79.5 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6762548Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Components [212 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6773053Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 c-n-f Metadata [556 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6779685Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6972557Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [7300 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6986223Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [10.5 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.6996858Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-backports/restricted amd64 Components [216 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7005924Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-backports/multiverse amd64 Components [212 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7517083Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1507 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7597985Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [241 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7617011Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [21.5 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7626880Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 c-n-f Metadata [10.1 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7636347Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [976 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7689209Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [218 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7707847Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [74.3 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7720182Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 c-n-f Metadata [20.6 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7730938Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [2612 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7858949Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [603 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7894562Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Components [212 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7902345Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 c-n-f Metadata [544 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:28.7911223Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse amd64 Components [212 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:36.6543158Z Fetched 14.9 MB in 2s (8204 kB/s)
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.4551115Z Reading package lists...
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.4894449Z Reading package lists...
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.6722049Z Building dependency tree...
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.6729732Z Reading state information...
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8378948Z google-chrome-stable is already the newest version (145.0.7632.116-1).
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8379771Z The following additional packages will be installed:
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8383887Z   libevent-2.1-7t64 tor-geoipdb torsocks
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8389696Z Suggested packages:
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8390304Z   mixmaster torbrowser-launcher socat apparmor-utils nyx obfs4proxy
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8767858Z The following NEW packages will be installed:
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8773884Z   libevent-2.1-7t64 tor tor-geoipdb torsocks
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8954161Z 0 upgraded, 4 newly installed, 0 to remove and 50 not upgraded.
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8954879Z Need to get 2833 kB of archives.
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8955836Z After this operation, 15.4 MB of additional disk space will be used.
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.8956750Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+scrape	Install Chromium and Tor	2026-03-12T07:11:37.9836984Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libevent-2.1-7t64 amd64 2.1.12-stable-9ubuntu2 [145 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:38.1806270Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 tor amd64 0.4.8.10-1build2 [1367 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:38.4890955Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 torsocks amd64 2.4.0-1 [69.9 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:38.5262076Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 tor-geoipdb all 0.4.8.10-1build2 [1252 kB]
+scrape	Install Chromium and Tor	2026-03-12T07:11:38.8732275Z Fetched 2833 kB in 1s (3930 kB/s)
+scrape	Install Chromium and Tor	2026-03-12T07:11:38.9080667Z Selecting previously unselected package libevent-2.1-7t64:amd64.
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0157770Z (Reading database ... 
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0158294Z (Reading database ... 5%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0158763Z (Reading database ... 10%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0159279Z (Reading database ... 15%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0159749Z (Reading database ... 20%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0160213Z (Reading database ... 25%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0160631Z (Reading database ... 30%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0160988Z (Reading database ... 35%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0161330Z (Reading database ... 40%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0161625Z (Reading database ... 45%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0161885Z (Reading database ... 50%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.0830970Z (Reading database ... 55%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.3413875Z (Reading database ... 60%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.4358827Z (Reading database ... 65%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.5295047Z (Reading database ... 70%
+scrape	Install Chromium and Tor	2026-03-12T07:11:39.6553466Z (Reading database ... 75%
+scrape	Install Chromium and Tor	2026-03-12T07:11:40.0099972Z (Reading database ... 80%
+scrape	Install Chromium and Tor	2026-03-12T07:11:40.5998541Z (Reading database ... 85%
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.3162123Z (Reading database ... 90%
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8181197Z (Reading database ... 95%
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8181843Z (Reading database ... 100%
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8182461Z (Reading database ... 219118 files and directories currently installed.)
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8227580Z Preparing to unpack .../libevent-2.1-7t64_2.1.12-stable-9ubuntu2_amd64.deb ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8272180Z Unpacking libevent-2.1-7t64:amd64 (2.1.12-stable-9ubuntu2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8630313Z Selecting previously unselected package tor.
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8790815Z Preparing to unpack .../tor_0.4.8.10-1build2_amd64.deb ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:41.8906446Z Unpacking tor (0.4.8.10-1build2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.0156528Z Selecting previously unselected package torsocks.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.0324733Z Preparing to unpack .../torsocks_2.4.0-1_amd64.deb ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.0469231Z Unpacking torsocks (2.4.0-1) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.0850571Z Selecting previously unselected package tor-geoipdb.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.1012274Z Preparing to unpack .../tor-geoipdb_0.4.8.10-1build2_all.deb ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.1023487Z Unpacking tor-geoipdb (0.4.8.10-1build2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.1840196Z Setting up libevent-2.1-7t64:amd64 (2.1.12-stable-9ubuntu2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.1873979Z Setting up tor (0.4.8.10-1build2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.3063226Z Something or somebody made /var/lib/tor disappear.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.3063709Z Creating one for you again.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.3074527Z Something or somebody made /var/log/tor disappear.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.3075672Z Creating one for you again.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.5031461Z Created symlink /etc/systemd/system/multi-user.target.wants/tor.service 鈫?/usr/lib/systemd/system/tor.service.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.5031989Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.8463298Z Setting up torsocks (2.4.0-1) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.8591591Z Setting up tor-geoipdb (0.4.8.10-1build2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.8627419Z Processing triggers for man-db (2.12.0-4build2) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.8734309Z Not building database; man-db/auto-update is not 'true'.
+scrape	Install Chromium and Tor	2026-03-12T07:11:42.8752615Z Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0309718Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0310572Z Running kernel seems to be up-to-date.
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0310977Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0311232Z No services need to be restarted.
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0311547Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0311808Z No containers need to be restarted.
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0312125Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0312440Z No user sessions are running outdated binaries.
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0312866Z 
+scrape	Install Chromium and Tor	2026-03-12T07:11:44.0313383Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+scrape	Install Chromium and Tor	2026-03-12T07:11:45.8887585Z Tor started (circuits establish during scraping)
+scrape	Run Scrapers	锘?026-03-12T07:11:45.8929663Z ##[group]Run npm run scrape
+scrape	Run Scrapers	2026-03-12T07:11:45.8929963Z [36;1mnpm run scrape[0m
+scrape	Run Scrapers	2026-03-12T07:11:45.8978740Z shell: /usr/bin/bash -e {0}
+scrape	Run Scrapers	2026-03-12T07:11:45.8978996Z env:
+scrape	Run Scrapers	2026-03-12T07:11:45.8979521Z   SUPABASE_URL: ***
+scrape	Run Scrapers	2026-03-12T07:11:45.8979848Z   SUPABASE_KEY: ***
+scrape	Run Scrapers	2026-03-12T07:11:45.8980131Z   DEEPSEEK_API_KEY: ***
+scrape	Run Scrapers	2026-03-12T07:11:45.8980598Z   WECOM_WEBHOOK_URL: ***
+scrape	Run Scrapers	2026-03-12T07:11:45.8980826Z   USE_SUPABASE: true
+scrape	Run Scrapers	2026-03-12T07:11:45.8981114Z   PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+scrape	Run Scrapers	2026-03-12T07:11:45.8981440Z ##[endgroup]
+scrape	Run Scrapers	2026-03-12T07:11:46.0114428Z 
+scrape	Run Scrapers	2026-03-12T07:11:46.0114985Z > alpha-radar@1.2.0 scrape
+scrape	Run Scrapers	2026-03-12T07:11:46.0115722Z > node scrapers/index.js
+scrape	Run Scrapers	2026-03-12T07:11:46.0115933Z 
+scrape	Run Scrapers	2026-03-12T07:11:46.0709533Z [dotenv@17.3.1] injecting env (0) from .env -- tip: 馃洝锔?auth for agents: https://vestauth.com
+scrape	Run Scrapers	2026-03-12T07:11:46.1808985Z [dotenv@17.3.1] injecting env (0) from .env -- tip: 鈿欙笍  override existing env vars with { override: true }
+scrape	Run Scrapers	2026-03-12T07:11:46.1812679Z [dotenv@17.3.1] injecting env (0) from .env -- tip: 馃攼 prevent committing .env to code: https://dotenvx.com/precommit
+scrape	Post Setup Node.js	锘?026-03-12T07:11:46.4287428Z Post job cleanup.
+scrape	Post Setup Node.js	2026-03-12T07:11:46.5841513Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-8dd34a6654ed78cb8050d01fcd1811c4ab2f46374a5fcbe51726ec3e758d9607, not saving cache.
+scrape	Post Checkout code	锘?026-03-12T07:11:46.5971726Z Post job cleanup.
+scrape	Post Checkout code	2026-03-12T07:11:46.6920325Z [command]/usr/bin/git version
+scrape	Post Checkout code	2026-03-12T07:11:46.6956965Z git version 2.53.0
+scrape	Post Checkout code	2026-03-12T07:11:46.7000766Z Temporarily overriding HOME='/home/runner/work/_temp/631efe30-047a-473c-90be-47a87e852a91' before making global git config changes
+scrape	Post Checkout code	2026-03-12T07:11:46.7002011Z Adding repository directory to the temporary git global config as a safe directory
+scrape	Post Checkout code	2026-03-12T07:11:46.7006500Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/industry-feeds/industry-feeds
+scrape	Post Checkout code	2026-03-12T07:11:46.7042055Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+scrape	Post Checkout code	2026-03-12T07:11:46.7075693Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+scrape	Post Checkout code	2026-03-12T07:11:46.7316878Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+scrape	Post Checkout code	2026-03-12T07:11:46.7339319Z http.https://github.com/.extraheader
+scrape	Post Checkout code	2026-03-12T07:11:46.7351855Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+scrape	Post Checkout code	2026-03-12T07:11:46.7383596Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+scrape	Post Checkout code	2026-03-12T07:11:46.7615722Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+scrape	Post Checkout code	2026-03-12T07:11:46.7647236Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+scrape	Complete job	锘?026-03-12T07:11:46.7988783Z Cleaning up orphan processes
+scrape	Complete job	2026-03-12T07:11:46.8429143Z ##[warning]Node.js 20 actions are deprecated. The following actions are running on Node.js 20 and may not work as expected: actions/checkout@v4, actions/setup-node@v4. Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026. Please check if updated versions of these actions are available that support Node.js 24. To opt into Node.js 24 now, set the FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true environment variable on the runner or in your workflow file. Once Node.js 24 becomes the default, you can temporarily opt out by setting ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

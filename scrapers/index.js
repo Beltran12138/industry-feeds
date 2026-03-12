@@ -24,6 +24,7 @@ const {
   normalizeKey,
   canPushMessage,
   updateSourcePush,
+  checkIfSent,
 } = require('../db');
 const { processWithAI }    = require('../ai');
 const { sendToWeCom }      = require('../wecom');
@@ -42,6 +43,7 @@ const {
   HK_KEYWORDS,
   HIGH_FREQ_SOURCES,
   LOW_FREQ_SOURCES,
+  MAINSTREAM_EXCHANGES,
 } = require('../config');
 
 // ── 爬虫函数注册表 ─────────────────────────────────────────────────────────────
@@ -212,7 +214,7 @@ async function runAllScrapers(tier = 'all') {
       const sourceConfig = getSourceConfig(item.source);
       
       // 检查源级别冷却时间
-      if (!canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours)) {
+      if (!(await canPushMessage(item.source, item.title, item.timestamp, sourceConfig.pushCooldownHours))) {
         console.log(`[SKIP COOLDOWN] ${item.source}: 冷却期内 (${sourceConfig.pushCooldownHours}h): ${item.title.substring(0, 40)}`);
         item.sent_to_wecom = 1;
         await saveNews([item]).catch(e => console.warn('[Save skip cooldown]', e.message));
@@ -229,14 +231,9 @@ async function runAllScrapers(tier = 'all') {
       pushLock.add(nTitle);
 
       // 二次 DB 校验（防并发重复）
-      let dbCheck = null;
-      try {
-        dbCheck = db.prepare(
-          'SELECT sent_to_wecom FROM news WHERE (url = ? OR normalized_title = ?) AND sent_to_wecom = 1'
-        ).get(item.url, nTitle);
-      } catch (_) { /* ignore */ }
+      const isActuallySent = await checkIfSent(item.url, nTitle);
 
-      if (dbCheck) {
+      if (isActuallySent) {
         item.sent_to_wecom = 1;
         await saveNews([item]).catch(e => console.warn('[Save dbCheck]', e.message));
         processedNews.push(item);
@@ -256,7 +253,7 @@ async function runAllScrapers(tier = 'all') {
         await sendToWeCom(item);
         
         // 更新源追踪信息
-        updateSourcePush(item.source, item.timestamp, item.title);
+        await updateSourcePush(item.source, item.timestamp, item.title);
         
         updateSentStatus(item).catch(e => console.warn('[Supabase update]', e.message));
       } catch (err) {

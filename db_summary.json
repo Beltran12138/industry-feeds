@@ -1,0 +1,137 @@
+[
+  {
+    "source": "Binance",
+    "count(*)": 71,
+    "MAX(timestamp)": 1773241201739
+  },
+  {
+    "source": "Bitget",
+    "count(*)": 67,
+    "MAX(timestamp)": 1773042394924
+  },
+  {
+    "source": "BlockBeats",
+    "count(*)": 244,
+    "MAX(timestamp)": 1773043215099
+  },
+  {
+    "source": "Bybit",
+    "count(*)": 80,
+    "MAX(timestamp)": 1773244973036
+  },
+  {
+    "source": "Exio",
+    "count(*)": 11,
+    "MAX(timestamp)": 1773100800000
+  },
+  {
+    "source": "Gate",
+    "count(*)": 71,
+    "MAX(timestamp)": 1772596627937
+  },
+  {
+    "source": "HTX",
+    "count(*)": 104,
+    "MAX(timestamp)": 1773208800000
+  },
+  {
+    "source": "HashKeyExchange",
+    "count(*)": 31,
+    "MAX(timestamp)": 1773215488000
+  },
+  {
+    "source": "HashKeyGroup",
+    "count(*)": 12,
+    "MAX(timestamp)": 1772349193519
+  },
+  {
+    "source": "JustinSun",
+    "count(*)": 28,
+    "MAX(timestamp)": 1772615704000
+  },
+  {
+    "source": "KuCoin",
+    "count(*)": 8,
+    "MAX(timestamp)": 1773158400000
+  },
+  {
+    "source": "MEXC",
+    "count(*)": 70,
+    "MAX(timestamp)": 1773244973036
+  },
+  {
+    "source": "Matrixport",
+    "count(*)": 90,
+    "MAX(timestamp)": 1772347736278
+  },
+  {
+    "source": "OKX",
+    "count(*)": 21,
+    "MAX(timestamp)": 1772694016984
+  },
+  {
+    "source": "OSL",
+    "count(*)": 2,
+    "MAX(timestamp)": 1772545962150
+  },
+  {
+    "source": "PRNewswire",
+    "count(*)": 69,
+    "MAX(timestamp)": 1773235800000
+  },
+  {
+    "source": "Phyrex",
+    "count(*)": 60,
+    "MAX(timestamp)": 1772657729000
+  },
+  {
+    "source": "Poly-Breaking",
+    "count(*)": 28,
+    "MAX(timestamp)": 1773023356856
+  },
+  {
+    "source": "Poly-China",
+    "count(*)": 35,
+    "MAX(timestamp)": 1772686358151
+  },
+  {
+    "source": "Polymarket",
+    "count(*)": 7,
+    "MAX(timestamp)": 1772210315769
+  },
+  {
+    "source": "TechFlow",
+    "count(*)": 90,
+    "MAX(timestamp)": 1773244973004
+  },
+  {
+    "source": "TechubNews",
+    "count(*)": 32,
+    "MAX(timestamp)": 1773222552634
+  },
+  {
+    "source": "TestSource",
+    "count(*)": 1,
+    "MAX(timestamp)": 1772610608672
+  },
+  {
+    "source": "TwitterAB",
+    "count(*)": 70,
+    "MAX(timestamp)": 1772685958000
+  },
+  {
+    "source": "WuBlock",
+    "count(*)": 78,
+    "MAX(timestamp)": 1773244973015
+  },
+  {
+    "source": "WuShuo",
+    "count(*)": 37,
+    "MAX(timestamp)": 1772626629000
+  },
+  {
+    "source": "XieJiayin",
+    "count(*)": 27,
+    "MAX(timestamp)": 1772614190000
+  }
+]

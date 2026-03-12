@@ -10,10 +10,50 @@ function createApp() {
   const cors    = require('cors');
   const cron    = require('node-cron');
   const path    = require('path');
-  const { getNews, getStats } = require('./db');
-  const { runAllScrapers }    = require('./scrapers/index');
-  const { runDailyReport, runWeeklyReport } = require('./report');
-  const { SERVER } = require('./config');
+
+  let getNews, getStats, runAllScrapers, runDailyReport, runWeeklyReport, SERVER;
+  
+  try {
+    const db = require('./db');
+    getNews = db.getNews;
+    getStats = db.getStats;
+    console.log('[server] DB loaded successfully');
+  } catch (e) {
+    console.error('[server] Failed to load db:', e.message, e.stack);
+    getNews = async () => [];
+    getStats = async () => ({ total: 0, important: 0, sources: [], categories: [] });
+  }
+  
+  try {
+    const scrapers = require('./scrapers/index');
+    runAllScrapers = scrapers.runAllScrapers;
+  } catch (e) {
+    console.error('[server] Failed to load scrapers:', e.message);
+    runAllScrapers = async () => [];
+  }
+  
+  try {
+    const report = require('./report');
+    runDailyReport = report.runDailyReport;
+    runWeeklyReport = report.runWeeklyReport;
+  } catch (e) {
+    console.error('[server] Failed to load report:', e.message);
+    runDailyReport = async () => 'Report unavailable';
+    runWeeklyReport = async () => 'Report unavailable';
+  }
+  
+  try {
+    SERVER = require('./config').SERVER;
+  } catch (e) {
+    console.error('[server] Failed to load config:', e.message);
+    SERVER = { 
+      PORT: 3001, 
+      SCRAPE_HIGH_CRON: '*/5 * * * *', 
+      SCRAPE_LOW_CRON: '*/30 * * * *', 
+      DAILY_REPORT_CRON: '0 10 * * 1-4', 
+      WEEKLY_REPORT_CRON: '0 10 * * 5' 
+    };
+  }
 
   app = express();
   const PORT = SERVER.PORT;
@@ -38,19 +78,24 @@ function createApp() {
   app.use(express.static(path.join(__dirname, 'public')));
 
   // ── 健康检查（无需认证）─────────────────────────────────────────────────────
-  app.get('/api/health', (req, res) => {
-    const stats = getStats();
-    res.json({
-      status: 'ok',
-      uptime: Math.floor((Date.now() - START_TIME) / 1000),
-      startedAt: START_TIME.toISOString(),
-      db: {
-        total: stats.total,
-        important: stats.important,
-        sources: stats.sources,
-      },
-      version: require('./package.json').version,
-    });
+  app.get('/api/health', async (req, res) => {
+    try {
+      const stats = await getStats();
+      res.json({
+        status: 'ok',
+        uptime: Math.floor((Date.now() - START_TIME) / 1000),
+        startedAt: START_TIME.toISOString(),
+        db: {
+          total: stats.total,
+          important: stats.important,
+          sources: stats.sources,
+        },
+        version: require('./package.json').version,
+      });
+    } catch (e) {
+      console.error('[health] Error:', e.message, e.stack);
+      res.status(500).json({ status: 'error', error: e.message });
+    }
   });
 
   // ── GET /api/news ──────────────────────────────────────────────────────────
@@ -63,7 +108,7 @@ function createApp() {
     'Poly-Breaking', 'Poly-China',
   ]);
 
-  app.get('/api/news', (req, res) => {
+  app.get('/api/news', async (req, res) => {
     let source    = req.query.source    || 'All';
     const important = req.query.important === '1' ? 1 : 0;
     const page    = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -72,7 +117,7 @@ function createApp() {
 
     if (!VALID_SOURCES.has(source)) source = 'All';
 
-    const news = getNews(perPage, source === 'Important' ? 'All' : source, important, search);
+    const news = await getNews(perPage, source === 'Important' ? 'All' : source, important, search);
     res.json({
       success:    true,
       count:      news.length,
@@ -83,9 +128,9 @@ function createApp() {
   });
 
   // ── 统计接口（供前端图表使用）───────────────────────────────────────────────
-  app.get('/api/stats', (req, res) => {
+  app.get('/api/stats', async (req, res) => {
     const since = parseInt(req.query.since, 10) || (Date.now() - 7 * 24 * 3600 * 1000);
-    const stats = getStats(since);
+    const stats = await getStats(since);
     res.json({ success: true, data: stats });
   });
 
@@ -124,9 +169,14 @@ function createApp() {
 
   // Vercel Serverless 环境不支持 cron，只在本地运行
   if (process.env.VERCEL !== 'true') {
-    cron.schedule(SERVER.SCRAPE_CRON, async () => {
-      console.log('[CRON] Running scheduled scrape…');
-      try { await runAllScrapers(); } catch (e) { console.error('[CRON] Scrape error:', e.message); }
+    cron.schedule(SERVER.SCRAPE_HIGH_CRON || '*/5 * * * *', async () => {
+      console.log('[CRON] Running scheduled high-freq scrape…');
+      try { await runAllScrapers('high'); } catch (e) { console.error('[CRON] High-freq Scrape error:', e.message); }
+    });
+
+    cron.schedule(SERVER.SCRAPE_LOW_CRON || '*/30 * * * *', async () => {
+      console.log('[CRON] Running scheduled low-freq scrape…');
+      try { await runAllScrapers('low'); } catch (e) { console.error('[CRON] Low-freq Scrape error:', e.message); }
     });
 
     cron.schedule(SERVER.DAILY_REPORT_CRON, async () => {
@@ -141,7 +191,7 @@ function createApp() {
   }
 
   // ── SPA fallback ────────────────────────────────────────────────────────────
-  app.get('/{*path}', (req, res) => {
+  app.use((req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
   });
 
@@ -151,21 +201,25 @@ function createApp() {
 // 本地运行模式
 if (require.main === module) {
   const app = createApp();
-  const PORT = app.locals.PORT || SERVER.PORT;
+  const PORT = app.locals.PORT || 3001;
   
   app.listen(PORT, async () => {
     console.log(`[SERVER] Alpha Radar running on http://localhost:${PORT}`);
-    console.log(`[SERVER] Scrape cron : ${SERVER.SCRAPE_CRON}`);
-    console.log(`[SERVER] Daily  cron : ${SERVER.DAILY_REPORT_CRON}  (UTC)`);
-    console.log(`[SERVER] Weekly cron : ${SERVER.WEEKLY_REPORT_CRON} (UTC)`);
+    const SERVER_CONFIG = require('./config').SERVER || {};
+    console.log(`[SERVER] Scrape HIGH cron : ${SERVER_CONFIG.SCRAPE_HIGH_CRON}`);
+    console.log(`[SERVER] Scrape LOW  cron : ${SERVER_CONFIG.SCRAPE_LOW_CRON}`);
+    console.log(`[SERVER] Daily  cron : ${SERVER_CONFIG.DAILY_REPORT_CRON}  (UTC)`);
+    console.log(`[SERVER] Weekly cron : ${SERVER_CONFIG.WEEKLY_REPORT_CRON} (UTC)`);
 
-    const current = getNews(1);
+    const db = require('./db');
+    const current = await db.getNews(1);
     if (current.length === 0) {
       console.log('[INIT] DB empty — running initial scrape…');
-      await runAllScrapers().catch(e => console.error('[INIT] Scrape error:', e.message));
+      const scrapers = require('./scrapers/index');
+      await scrapers.runAllScrapers().catch(e => console.error('[INIT] Scrape error:', e.message));
     }
   });
 }
 
 // Vercel Serverless 导出
-module.exports = createApp;
+module.exports = createApp();

@@ -1,0 +1,27 @@
+[
+  {
+    "href": "https://www.gate.com/zh/announcements/lastest",
+    "text": "近期公告",
+    "containerText": "近期公告"
+  },
+  {
+    "href": "https://www.gate.com/zh/announcements/activity",
+    "text": "最新活动",
+    "containerText": "最新活动"
+  },
+  {
+    "href": "https://www.gate.com/zh/announcements/trade-match",
+    "text": "交易大赛",
+    "containerText": "交易大赛"
+  },
+  {
+    "href": "https://www.gate.com/zh/announcements/copy",
+    "text": "跟单活动",
+    "containerText": "跟单活动"
+  },
+  {
+    "href": "https://www.gate.com/zh/announcements/gtevents",
+    "text": "GT 活动",
+    "containerText": "GT 活动"
+  }
+]
