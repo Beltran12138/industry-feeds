@@ -214,7 +214,9 @@ const SOURCE_CONFIGS = {
   'OSL':            { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'Exio':           { maxAgeHours: 72, enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'TechubNews':     { maxAgeHours: 24,  enableStrictTimestamp: true,  dedupMode: 'strict', pushCooldownHours: 48 },
-  'Matrixport':     { maxAgeHours: 24,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
+  // Matrixport 已禁用 - 帮助中心页面无时间信息，无法判断文章新旧，导致重复推送
+  // 'Matrixport':     { maxAgeHours: 24,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
+  'Matrixport':     { maxAgeHours: 24,  enableStrictTimestamp: true,  dedupMode: 'strict', pushCooldownHours: 24, disabled: true },
   'HashKeyGroup':   { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'HashKeyExchange':{ maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 24 },
   'WuBlock':        { maxAgeHours: 48,  enableStrictTimestamp: false, dedupMode: 'strict', pushCooldownHours: 48 },

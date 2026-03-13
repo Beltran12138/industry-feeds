@@ -44,6 +44,7 @@ const {
   HIGH_FREQ_SOURCES,
   LOW_FREQ_SOURCES,
   MAINSTREAM_EXCHANGES,
+  SOURCE_CONFIGS,
 } = require('../config');
 
 // ── 爬虫函数注册表 ─────────────────────────────────────────────────────────────
@@ -69,6 +70,25 @@ const SCRAPERS_MAP = {
   Bitget: scrapeBitget, Mexc: scrapeMexc, PolymarketBreaking: scrapePolymarketBreaking,
   PolymarketChina: scrapePolymarketChina, Gate: scrapeGate, Htx: scrapeHtx
 };
+
+// 检查源是否被禁用
+function isSourceDisabled(sourceName) {
+  const config = SOURCE_CONFIGS[sourceName];
+  return config && config.disabled === true;
+}
+
+// 获取启用的爬虫列表
+function getEnabledScrapers(scrapersMap) {
+  const enabled = {};
+  for (const [name, fn] of Object.entries(scrapersMap)) {
+    if (!isSourceDisabled(name)) {
+      enabled[name] = fn;
+    } else {
+      console.log(`[Scrape] Source "${name}" is disabled, skipping...`);
+    }
+  }
+  return enabled;
+}
 
 const ALL_SCRAPERS = Object.values(SCRAPERS_MAP);
 
@@ -105,13 +125,16 @@ async function runAllScrapers(tier = 'all') {
   console.log(`=== [Scrape] Start (Tier: ${tier}) ===`);
   const startMs = Date.now();
 
+  // 过滤禁用的源
+  const enabledScrapersMap = getEnabledScrapers(SCRAPERS_MAP);
+
   let targetScrapers = [];
   if (tier === 'high') {
-    targetScrapers = HIGH_FREQ_SOURCES.map(key => SCRAPERS_MAP[key]).filter(Boolean);
+    targetScrapers = HIGH_FREQ_SOURCES.map(key => enabledScrapersMap[key]).filter(Boolean);
   } else if (tier === 'low') {
-    targetScrapers = LOW_FREQ_SOURCES.map(key => SCRAPERS_MAP[key]).filter(Boolean);
+    targetScrapers = LOW_FREQ_SOURCES.map(key => enabledScrapersMap[key]).filter(Boolean);
   } else {
-    targetScrapers = ALL_SCRAPERS;
+    targetScrapers = Object.values(enabledScrapersMap);
   }
 
   // 1. 分批并发执行目标爬虫
