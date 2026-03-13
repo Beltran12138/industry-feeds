@@ -53,7 +53,7 @@ const WECOM_BLOCK_SOURCES = new Set([
 
 /** 香港合规板块 — 全量推送 */
 const HK_SOURCES = new Set([
-  'SFC', 'OSL', 'Exio', 'TechubNews', 'Matrixport',
+  'SFC', 'OSL', 'Exio', 'TechubNews',
   'HashKeyGroup', 'HashKeyExchange', 'WuBlock',
 ]);
 
@@ -269,7 +269,7 @@ const HIGH_FREQ_SOURCES = [
 // 低频拉取源（T1：常规快讯与公关，建议 15-30 分钟级别）
 const LOW_FREQ_SOURCES = [
   'TechFlow', 'PRNewswire', 'BlockBeats',
-  'OSL', 'TechubNews', 'Exio', 'Matrixport',
+  'OSL', 'TechubNews', 'Exio',
   'WuBlock', 'HashKeyGroup', 'KuCoin', 'HashKeyExchange',
   'Bybit', 'Bitget', 'Mexc', 'Gate', 'Htx'
 ];

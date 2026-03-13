@@ -229,8 +229,8 @@ EXCHANGE_EXCLUDE_KEYWORDS = ['listing', '上线', '新币', ... ]        // 排�
 ### 交易所（8 家）
 - Binance, OKX, Bybit, Gate, MEXC, Bitget, HTX, KuCoin
 
-### 香港合规所（6 家）
-- OSL, HashKey Group, HashKey Exchange, Exio, Matrixport, Techub News, WuBlock
+### 香港合规所（5 家）
+- OSL, HashKey Group, HashKey Exchange, Exio, Techub News, WuBlock
 
 ### 媒体（3 家）
 - BlockBeats, TechFlow, PR Newswire

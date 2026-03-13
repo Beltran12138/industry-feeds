@@ -169,7 +169,7 @@ function createApp() {
       'All', 'Important',
       'Binance', 'OKX', 'Bybit', 'Gate', 'MEXC', 'Bitget', 'HTX', 'KuCoin',
       'BlockBeats', 'TechFlow', 'PRNewswire',
-      'HashKeyGroup', 'HashKeyExchange', 'WuBlock', 'OSL', 'Exio', 'TechubNews', 'Matrixport',
+      'HashKeyGroup', 'HashKeyExchange', 'WuBlock', 'OSL', 'Exio', 'TechubNews',
       'WuShuo', 'Phyrex', 'JustinSun', 'XieJiayin', 'TwitterAB',
       'Poly-Breaking', 'Poly-China',
     ]);
