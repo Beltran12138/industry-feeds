@@ -254,6 +254,45 @@ function createApp() {
     }
   });
 
+  // ── 按来源删除数据（需要 API Key）──────────────────────────────────────────
+  app.delete('/api/news-by-source/:source', apiKeyGuard, async (req, res) => {
+    const source = req.params.source;
+    if (!source) {
+      return res.status(400).json({ success: false, error: 'Missing source parameter' });
+    }
+
+    try {
+      const results = { sqlite: 0, supabase: 0 };
+
+      // 删除本地 SQLite
+      const dbModule = require('./db');
+      if (dbModule.db) {
+        const r = dbModule.db.prepare('DELETE FROM news WHERE source = ?').run(source);
+        results.sqlite = r.changes;
+        console.log(`[API] Deleted ${r.changes} SQLite rows for source: ${source}`);
+      }
+
+      // 删除 Supabase
+      if (dbModule.supabase) {
+        const { error, count } = await dbModule.supabase
+          .from('news')
+          .delete()
+          .eq('source', source);
+        if (error) {
+          console.error('[API] Supabase delete error:', error.message);
+        } else {
+          results.supabase = count || 0;
+          console.log(`[API] Deleted Supabase rows for source: ${source}`);
+        }
+      }
+
+      res.json({ success: true, source, deleted: results });
+    } catch (err) {
+      console.error('[API /news-by-source]', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // ── 推送渠道状态接口 ───────────────────────────────────────────────────────
   app.get('/api/push-status', (req, res) => {
     if (!pushManager) {

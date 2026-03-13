@@ -650,6 +650,7 @@ async function checkIfSent(url, nTitle) {
 
 module.exports = { 
   db, 
+  supabase,
   saveNews, 
   getNews, 
   getStats, 
