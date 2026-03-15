@@ -58,6 +58,11 @@ function createApp() {
   }
 
   app = express();
+
+  // ── 应用安全中间件 ─────────────────────────────────────────────────────────────
+  const { applySecurity } = require('./security');
+  applySecurity(app);
+
   const PORT = SERVER.PORT;
   app.locals.PORT = PORT;
 
@@ -225,6 +230,42 @@ function createApp() {
   };
   app.get('/api/stats', statsHandler);
   app.get('/stats', statsHandler);
+
+  // ── 语义搜索接口 ───────────────────────────────────────────────────────────────
+  const semanticSearchHandler = async (req, res) => {
+    const { q, limit, threshold } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ success: false, error: 'Query too short' });
+    }
+
+    try {
+      const semantic = require('./semantic-search');
+      const results = await semantic.semanticSearch(q, {
+        limit: Math.min(50, Math.max(1, parseInt(limit, 10) || 10)),
+        threshold: Math.min(1, Math.max(0, parseFloat(threshold) || 0.5))
+      });
+      
+      res.json({ success: true, count: results.length, data: results });
+    } catch (err) {
+      console.error('[API /search/semantic]', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  };
+  app.get('/api/search/semantic', semanticSearchHandler);
+
+  // ── 生成向量嵌入接口 ───────────────────────────────────────────────────────────
+  app.post('/api/embeddings/generate', apiKeyGuard, async (req, res) => {
+    try {
+      const semantic = require('./semantic-search');
+      const count = Math.min(500, Math.max(1, parseInt(req.query.count, 10) || 100));
+      const result = await semantic.generateEmbeddingsForRecentNews(count);
+      res.json({ success: true, ...result });
+    } catch (err) {
+      console.error('[API /embeddings/generate]', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
 
   // ── 趋势数据接口（按天统计各 business_category 的消息量）──────────────────
   app.get('/api/trend', async (req, res) => {
