@@ -27,19 +27,5 @@
   "env": {
     "NODE_ENV": "production",
     "VERCEL": "true"
-  },
-  "crons": [
-    {
-      "path": "/api/scrape?tier=high",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/scrape?tier=low",
-      "schedule": "*/30 * * * *"
-    },
-    {
-      "path": "/api/health/check",
-      "schedule": "0 * * * *"
-    }
-  ]
+  }
 }
