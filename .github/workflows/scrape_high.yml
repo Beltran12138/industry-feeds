@@ -2,12 +2,18 @@ name: Industry Feeds Scraper (High-Freq)
 
 on:
   schedule:
-    - cron: '*/5 * * * *' # Run every 5 minutes
+    - cron: '*/15 * * * *' # Run every 15 minutes (was */5, saved ~67% CI minutes)
   workflow_dispatch: # Manual trigger
+
+# Prevent overlapping runs
+concurrency:
+  group: scrape-high
+  cancel-in-progress: true
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -18,12 +24,17 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Cache apt packages
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: google-chrome-stable tor
+          version: 1.0
 
-      - name: Install Chromium and Tor
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Start Tor
         run: |
-          sudo apt-get update && sudo apt-get install -y google-chrome-stable tor
           sudo service tor start
           echo "Tor started (circuits establish during scraping)"
 

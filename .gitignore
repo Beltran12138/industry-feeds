@@ -15,10 +15,15 @@ node_modules/
 Weekly_Report_*.md
 Daily_Report_*.md
 
-# Test / debug files
-test_*.js
-debug_*.js
-check_schema.js
+# Debug / temp data files
+*_debug.json
+gh_runs*.json
+db_summary.json
+*.backup
+inspect_error.log
+
+# Compiled frontend (rebuilt via npm run build)
+public/app.js
 
 # Logs
 *.log

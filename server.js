@@ -645,6 +645,53 @@ function createApp() {
     res.json({ success: true, data: queryCache.getStats() });
   });
 
+  // ── 云端同步接口（替代前端直连 Supabase）───────────────────────────────────
+  app.post('/api/sync/save', async (req, res) => {
+    try {
+      const { sync_code, read_ids, bookmarks } = req.body;
+      if (!sync_code || sync_code.length !== 6) {
+        return res.status(400).json({ success: false, error: 'Invalid sync code' });
+      }
+      const dbModule = require('./db');
+      if (dbModule.supabase) {
+        await dbModule.supabase.from('user_preferences').upsert(
+          { sync_code, read_ids: read_ids || [], bookmarks: bookmarks || [] },
+          { onConflict: 'sync_code' }
+        );
+        return res.json({ success: true });
+      }
+      res.status(503).json({ success: false, error: 'Supabase not configured' });
+    } catch (err) {
+      console.error('[API /sync/save]', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get('/api/sync/load', async (req, res) => {
+    try {
+      const code = (req.query.code || '').trim().toUpperCase();
+      if (!code || code.length !== 6) {
+        return res.status(400).json({ success: false, error: 'Invalid sync code' });
+      }
+      const dbModule = require('./db');
+      if (dbModule.supabase) {
+        const { data, error } = await dbModule.supabase
+          .from('user_preferences')
+          .select('*')
+          .eq('sync_code', code)
+          .single();
+        if (error || !data) {
+          return res.status(404).json({ success: false, error: 'Sync code not found' });
+        }
+        return res.json({ success: true, data });
+      }
+      res.status(503).json({ success: false, error: 'Supabase not configured' });
+    } catch (err) {
+      console.error('[API /sync/load]', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // ── 以下写操作需要 API Key 保护 ────────────────────────────────────────────
   app.post('/api/refresh', apiKeyGuard, async (req, res) => {
     try {

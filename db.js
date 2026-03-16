@@ -322,39 +322,42 @@ async function getStatsFromSupabase(since = 0) {
   const sinceTs = since || (Date.now() - 7 * 24 * 3600 * 1000);
   
   try {
-    // Supabase JS client doesn't support GROUP BY — fetch counts + raw columns, aggregate in JS
+    // Use server-side aggregation RPCs (see sql/stats-rpc.sql)
     const [
       { count: total },
       { count: important },
-      { data: catRows },
-      { data: srcRows },
+      catResult,
+      srcResult,
     ] = await Promise.all([
       supabase.from('news').select('*', { count: 'exact', head: true }),
       supabase.from('news').select('*', { count: 'exact', head: true }).eq('is_important', 1),
-      supabase.from('news').select('business_category').gte('timestamp', sinceTs).neq('business_category', ''),
-      supabase.from('news').select('source'),
+      supabase.rpc('get_category_stats', { since_ts: sinceTs }),
+      supabase.rpc('get_source_stats'),
     ]);
 
-    // Aggregate categories client-side
-    const catMap = {};
-    (catRows || []).forEach(r => {
-      const c = r.business_category;
-      if (c) catMap[c] = (catMap[c] || 0) + 1;
-    });
-    const categories = Object.entries(catMap)
-      .map(([business_category, n]) => ({ business_category, n }))
-      .sort((a, b) => b.n - a.n);
+    let categories, sources;
 
-    // Aggregate sources client-side
-    const srcMap = {};
-    (srcRows || []).forEach(r => {
-      const s = r.source;
-      if (s) srcMap[s] = (srcMap[s] || 0) + 1;
-    });
-    const sources = Object.entries(srcMap)
-      .map(([source, n]) => ({ source, n }))
-      .sort((a, b) => b.n - a.n)
-      .slice(0, 30);
+    // RPC succeeded
+    if (!catResult.error && catResult.data) {
+      categories = catResult.data;
+    } else {
+      // Fallback: client-side aggregation (before RPC is deployed)
+      console.warn('[Stats] RPC get_category_stats not available, falling back to client-side');
+      const { data: catRows } = await supabase.from('news').select('business_category').gte('timestamp', sinceTs).neq('business_category', '');
+      const catMap = {};
+      (catRows || []).forEach(r => { const c = r.business_category; if (c) catMap[c] = (catMap[c] || 0) + 1; });
+      categories = Object.entries(catMap).map(([business_category, n]) => ({ business_category, n })).sort((a, b) => b.n - a.n);
+    }
+
+    if (!srcResult.error && srcResult.data) {
+      sources = srcResult.data;
+    } else {
+      console.warn('[Stats] RPC get_source_stats not available, falling back to client-side');
+      const { data: srcRows } = await supabase.from('news').select('source');
+      const srcMap = {};
+      (srcRows || []).forEach(r => { const s = r.source; if (s) srcMap[s] = (srcMap[s] || 0) + 1; });
+      sources = Object.entries(srcMap).map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n).slice(0, 30);
+    }
     
     return {
       total: total || 0,

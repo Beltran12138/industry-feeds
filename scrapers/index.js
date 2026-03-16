@@ -38,6 +38,12 @@ try {
   alertManager = require('../monitoring/alert-manager').alertManager;
 } catch (_) {}
 
+// ── Memory system: load recent insights for AI context ──────────────────────
+let insightDAO = null;
+try {
+  insightDAO = require('../dao').insightDAO;
+} catch (_) {}
+
 // ── Data quality integration ────────────────────────────────────────────────
 let qualityChecker = null;
 try {
@@ -261,6 +267,16 @@ async function runAllScrapers(tier = 'all') {
   const { processed: alreadyProcessed, sentToWeCom: alreadySent, existingTimestamps } =
     await getAlreadyProcessed(allNews);
 
+  // 3.5 加载最近的行业记忆，供 AI 分析引用
+  let recentInsights = [];
+  try {
+    if (insightDAO) {
+      recentInsights = await insightDAO.getRecent(5);
+    }
+  } catch (e) {
+    console.warn('[Scrape] Failed to load insights:', e.message);
+  }
+
   // 4. 逐条处理：时间戳修正 → AI → 重要性 → 推送
   const processedNews = [];
   let   aiCallCount   = 0;
@@ -314,7 +330,7 @@ async function runAllScrapers(tier = 'all') {
       if (!isListing || item.source.includes('HashKey') || item.source.includes('OSL')) {
         if (aiCallCount > 0) await new Promise(r => setTimeout(r, SCRAPER.AI_DELAY_MS));
         try {
-          const aiResult = await processWithAI(item.title, item.content);
+          const aiResult = await processWithAI(item.title, item.content, item.source, recentInsights);
           aiCallCount++;
           if (aiResult) {
             Object.assign(item, aiResult);
@@ -406,6 +422,31 @@ async function runAllScrapers(tier = 'all') {
     await monitor.checkDensity();
   } catch (e) {
     console.error('[Monitor] Alert check failed:', e.message);
+  }
+
+  // 5. 爬虫失败率汇总告警
+  if (alertManager) {
+    const totalScrapers = targetScrapers.length;
+    let failedCount = 0;
+    for (const [, status] of alertManager.scraperStatus) {
+      if (status.consecutive > 0) failedCount++;
+    }
+    const failRate = totalScrapers > 0 ? failedCount / totalScrapers : 0;
+    if (failRate >= 0.3) {
+      const failedSources = [];
+      for (const [source, status] of alertManager.scraperStatus) {
+        if (status.consecutive > 0) {
+          failedSources.push(`${source} (连续${status.consecutive}次: ${status.lastError || 'unknown'})`);
+        }
+      }
+      alertManager.log('error', 'scraper-summary',
+        `本轮爬取失败率 ${(failRate * 100).toFixed(0)}% (${failedCount}/${totalScrapers})`);
+      alertManager._sendAlert(
+        'Scraper Batch Alert',
+        `本轮爬取失败率过高：${(failRate * 100).toFixed(0)}% (${failedCount}/${totalScrapers})\n\n失败来源：\n${failedSources.join('\n')}`,
+        { failRate, failedCount, totalScrapers }
+      );
+    }
   }
 
   const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);

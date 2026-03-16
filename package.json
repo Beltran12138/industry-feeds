@@ -7,6 +7,8 @@
     "node": "20.x"
   },
   "scripts": {
+    "build:frontend": "npx esbuild public/src/app.jsx --outfile=public/app.js --jsx=transform --jsx-factory=React.createElement --jsx-fragment=React.Fragment --minify --charset=utf8",
+    "build": "npm run build:frontend",
     "start": "node server.js",
     "dev": "node --watch server.js",
     "scrape": "node scrapers/index.js",

@@ -53,9 +53,20 @@ ${memoryStr}
       }
       
       const parsed = JSON.parse(cleanJson);
-      parsed.is_important = (parsed.alpha_score || 0) >= 85 ? 1 : 0;
-      parsed._ai_source = getStatus().currentProvider;
-      return parsed;
+
+      // Validate required fields and types
+      const validated = {
+        business_category: typeof parsed.business_category === 'string' ? parsed.business_category : '其他',
+        competitor_category: typeof parsed.competitor_category === 'string' ? parsed.competitor_category : '其他',
+        detail: typeof parsed.detail === 'string' ? parsed.detail.slice(0, 200) : '',
+        alpha_score: typeof parsed.alpha_score === 'number' ? Math.max(0, Math.min(100, Math.round(parsed.alpha_score))) : 50,
+        impact: ['利好', '利空', '中性'].includes(parsed.impact) ? parsed.impact : '中性',
+        bitv_action: typeof parsed.bitv_action === 'string' ? parsed.bitv_action.slice(0, 300) : '',
+        trend_reference: typeof parsed.trend_reference === 'string' ? parsed.trend_reference : '',
+      };
+      validated.is_important = validated.alpha_score >= 85 ? 1 : 0;
+      validated._ai_source = getStatus().currentProvider;
+      return validated;
     } catch (e) {
       console.warn('[AI] Parse error, falling back to rule engine:', e.message);
     }
@@ -438,4 +449,6 @@ module.exports = {
   generateWeeklySummary,
   getAIStatus: getStatus,
   ruleEngine,
+  // 便捷重导出：调用方可直接从 ai-enhanced 获取 callAI，无需再引 ai-provider
+  callAI,
 };

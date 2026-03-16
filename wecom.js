@@ -42,7 +42,7 @@ async function sendToWeCom(item, options = {}) {
           title: urgentPrefix + item.title,
           desc: `${scoreEmoji} ${item.business_category || '快讯'} | 价值分: ${item.alpha_score || (item.is_important ? 85 : 50)}`
         },
-        sub_title_text: item.detail || '（暂无摘要）',
+        sub_title_text: (item.detail || '（暂无摘要）') + (item.bitv_action ? `\n💡 建议: ${item.bitv_action}` : ''),
         horizontal_content_list: [
           {
             keyname: "情报维度",
@@ -56,6 +56,10 @@ async function sendToWeCom(item, options = {}) {
           {
             keyname: "来源渠道",
             value: item.source || '未知'
+          },
+          {
+            keyname: "趋势关联",
+            value: item.trend_reference || '暂无'
           }
         ],
         jump_list: [
@@ -66,13 +70,18 @@ async function sendToWeCom(item, options = {}) {
           },
           {
             type: 1,
+            url: `${DASHBOARD_URL}/?q=${encodeURIComponent(item.title)}&deep_ask=true`,
+            title: "深度追问"
+          },
+          {
+            type: 1,
             url: DASHBOARD_URL,
             title: item.bitv_action ? `建议: ${item.bitv_action}` : "查看情报看板"
           }
         ],
         card_action: {
           type: 1,
-          url: DASHBOARD_URL,
+          url: `${DASHBOARD_URL}/?q=${encodeURIComponent(item.title)}&deep_ask=true`,
           appid: "",
           pagepath: ""
         }
