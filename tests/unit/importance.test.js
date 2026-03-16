@@ -5,6 +5,11 @@
 
 const { checkImportance, ruleBasedPreFilter } = require('../../scrapers/index');
 const { validItem } = require('../mocks/sample-news');
+const { pushManager } = require('../../push-channel');
+
+afterAll(() => {
+  pushManager.cleanup();
+});
 
 describe('checkImportance', () => {
   test('blocks WeCom-blocked sources', () => {

@@ -57,6 +57,7 @@ describe('CircuitBreaker', () => {
       const cb = new CircuitBreaker('test', {
         failureThreshold: 1,
         resetTimeout: 100,
+        successThreshold: 1,
       });
 
       await expect(cb.execute(() => Promise.reject(new Error('fail')))).rejects.toThrow();

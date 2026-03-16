@@ -36,7 +36,10 @@ module.exports = function createNewsRoutes(deps) {
   });
 
   // ── GET /api/news ──────────────────────────────────────────────────────────
-  router.get('/', async (req, res, next) => {
+  router.get('/news', newsHandler);
+  router.get('/', newsHandler);
+
+  async function newsHandler(req, res, next) {
     try {
       let source = req.query.source || 'All';
       const important = req.query.important === '1' ? 1 : 0;
@@ -58,7 +61,7 @@ module.exports = function createNewsRoutes(deps) {
       logger.error({ err, path: req.path }, 'Failed to get news');
       next(err);
     }
-  });
+  }
 
   // ── 统计接口 ───────────────────────────────────────────────────────────────
   router.get('/stats', async (req, res, next) => {

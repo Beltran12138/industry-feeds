@@ -44,190 +44,189 @@ function normalizeKey(title, source) {
   return source ? `${normalized}|${source.trim().toLowerCase()}` : normalized;
 }
 
-if (!USE_SUPABASE) {
-  const Database = require('better-sqlite3');
-  db = new Database(path.join(__dirname, 'alpha_radar.db'));
-  // ── 建表 + 索引 ───────────────────────────────────────────────────────────────
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS news (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      normalized_title TEXT,
-      content TEXT,
-      detail TEXT DEFAULT '',
-      impact TEXT DEFAULT '',
-      bitv_action TEXT DEFAULT '',
-      source TEXT NOT NULL,
-      url TEXT UNIQUE,
-      category TEXT,
-      business_category TEXT DEFAULT '',
-      competitor_category TEXT DEFAULT '',
-      timestamp INTEGER,
-      is_important INTEGER DEFAULT 0,
-      alpha_score INTEGER DEFAULT 0,
-      sent_to_wecom INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS source_tracking (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      source TEXT UNIQUE NOT NULL,
-      last_pushed_timestamp INTEGER,
-      last_pushed_title TEXT,
-      last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    CREATE TABLE IF NOT EXISTS insights (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      trend_key TEXT UNIQUE,
-      summary TEXT,
-      evidence_count INTEGER DEFAULT 1,
-      first_seen INTEGER,
-      last_updated INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-    -- 核心查询索引
-    CREATE INDEX IF NOT EXISTS idx_timestamp       ON news(timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_source          ON news(source);
-    CREATE INDEX IF NOT EXISTS idx_is_important    ON news(is_important);
-    CREATE INDEX IF NOT EXISTS idx_alpha_score     ON news(alpha_score DESC);
-    CREATE INDEX IF NOT EXISTS idx_business_cat    ON news(business_category);
-    CREATE INDEX IF NOT EXISTS idx_sent_wecom      ON news(sent_to_wecom);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_title_source ON news(title, source);
-    CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title);
+// Always initialize SQLite as a local cache/secondary storage
+const Database = require('better-sqlite3');
+db = new Database(path.join(__dirname, 'alpha_radar.db'));
 
-    -- 复合索引（优化常见查询模式）
-    CREATE INDEX IF NOT EXISTS idx_source_timestamp ON news(source, timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_business_timestamp ON news(business_category, timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_important_timestamp ON news(is_important, timestamp DESC);
-    CREATE INDEX IF NOT EXISTS idx_alpha_timestamp ON news(alpha_score DESC, timestamp DESC);
+// ── 建表 + 索引 ───────────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS news (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    normalized_title TEXT,
+    content TEXT,
+    detail TEXT DEFAULT '',
+    impact TEXT DEFAULT '',
+    bitv_action TEXT DEFAULT '',
+    source TEXT NOT NULL,
+    url TEXT UNIQUE,
+    category TEXT,
+    business_category TEXT DEFAULT '',
+    competitor_category TEXT DEFAULT '',
+    timestamp INTEGER,
+    is_important INTEGER DEFAULT 0,
+    alpha_score INTEGER DEFAULT 0,
+    sent_to_wecom INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS source_tracking (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT UNIQUE NOT NULL,
+    last_pushed_timestamp INTEGER,
+    last_pushed_title TEXT,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS insights (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trend_key TEXT UNIQUE,
+    summary TEXT,
+    evidence_count INTEGER DEFAULT 1,
+    first_seen INTEGER,
+    last_updated INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  -- 核心查询索引
+  CREATE INDEX IF NOT EXISTS idx_timestamp       ON news(timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_source          ON news(source);
+  CREATE INDEX IF NOT EXISTS idx_is_important    ON news(is_important);
+  CREATE INDEX IF NOT EXISTS idx_alpha_score     ON news(alpha_score DESC);
+  CREATE INDEX IF NOT EXISTS idx_business_cat    ON news(business_category);
+  CREATE INDEX IF NOT EXISTS idx_sent_wecom      ON news(sent_to_wecom);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_title_source ON news(title, source);
+  CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title);
 
-    -- 趋势查询优化（按日期聚合）
-    CREATE INDEX IF NOT EXISTS idx_timestamp_business ON news(timestamp, business_category);
+  -- 复合索引（优化常见查询模式）
+  CREATE INDEX IF NOT EXISTS idx_source_timestamp ON news(source, timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_business_timestamp ON news(business_category, timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_important_timestamp ON news(is_important, timestamp DESC);
+  CREATE INDEX IF NOT EXISTS idx_alpha_timestamp ON news(alpha_score DESC, timestamp DESC);
 
-    -- 搜索优化（全文搜索前置）
-    CREATE INDEX IF NOT EXISTS idx_title_search ON news(title COLLATE NOCASE);
+  -- 趋势查询优化（按日期聚合）
+  CREATE INDEX IF NOT EXISTS idx_timestamp_business ON news(timestamp, business_category);
 
-    -- 其他表索引
-    CREATE INDEX IF NOT EXISTS idx_source_tracking ON source_tracking(source);
-    CREATE INDEX IF NOT EXISTS idx_insight_key     ON insights(trend_key);
-    CREATE INDEX IF NOT EXISTS idx_insight_updated ON insights(last_updated DESC);
-  `);
+  -- 搜索优化（全文搜索前置）
+  CREATE INDEX IF NOT EXISTS idx_title_search ON news(title COLLATE NOCASE);
 
-  // ── 安全迁移（已有数据库补列）────────────────────────────────────────────────
-  const existingCols = db.prepare('PRAGMA table_info(news)').all().map(c => c.name);
-  const migrations = [
-    ['detail',               "ALTER TABLE news ADD COLUMN detail TEXT DEFAULT ''"],
-    ['impact',               "ALTER TABLE news ADD COLUMN impact TEXT DEFAULT ''"],
-    ['bitv_action',          "ALTER TABLE news ADD COLUMN bitv_action TEXT DEFAULT ''"],
-    ['business_category',    "ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''"],
-    ['competitor_category',  "ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''"],
-    ['sent_to_wecom',        'ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0'],
-    ['alpha_score',          'ALTER TABLE news ADD COLUMN alpha_score INTEGER DEFAULT 0'],
-    ['normalized_title',     "ALTER TABLE news ADD COLUMN normalized_title TEXT DEFAULT ''; CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title)"],
-  ];
-  migrations.forEach(([col, sql]) => {
-    if (!existingCols.includes(col)) { 
-      try { db.exec(sql); console.log(`[DB] Migrated: +${col}`); } catch(e) { console.error(`[DB] Migration failed for ${col}:`, e.message); }
-    }
-  });
+  -- 其他表索引
+  CREATE INDEX IF NOT EXISTS idx_source_tracking ON source_tracking(source);
+  CREATE INDEX IF NOT EXISTS idx_insight_key     ON insights(trend_key);
+  CREATE INDEX IF NOT EXISTS idx_insight_updated ON insights(last_updated DESC);
+`);
 
-  // ── 预编译 SQL（性能优化）────────────────────────────────────────────────────
-  STMT = {
-    insert: db.prepare(`
-      INSERT INTO news
-        (title, normalized_title, content, detail, impact, bitv_action, source, url, category,
-         business_category, competitor_category, timestamp, is_important, alpha_score, sent_to_wecom)
-      VALUES
-        (@title, @normalized_title, @content, @detail, @impact, @bitv_action, @source, @url, @category,
-         @business_category, @competitor_category, @timestamp, @is_important, @alpha_score, @sent_to_wecom)
-      ON CONFLICT(title, source) DO UPDATE SET
-        url                 = CASE WHEN excluded.url != '' THEN excluded.url ELSE news.url END,
-        normalized_title    = excluded.normalized_title,
-        is_important        = MAX(news.is_important, excluded.is_important),
-        alpha_score         = MAX(news.alpha_score, excluded.alpha_score),
-        sent_to_wecom       = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
-        business_category   = CASE WHEN excluded.business_category != '' THEN excluded.business_category ELSE news.business_category END,
-        competitor_category = CASE WHEN excluded.competitor_category != '' THEN excluded.competitor_category ELSE news.competitor_category END,
-        detail              = CASE WHEN excluded.detail != ''              THEN excluded.detail             ELSE news.detail END,
-        impact              = CASE WHEN excluded.impact != ''              THEN excluded.impact             ELSE news.impact END,
-        bitv_action         = CASE WHEN excluded.bitv_action != ''          THEN excluded.bitv_action        ELSE news.bitv_action END,
-        timestamp           = news.timestamp,   -- 保留首次入库时间
-        created_at          = news.created_at
-    `),
+// ── 安全迁移（已有数据库补列）────────────────────────────────────────────────
+const existingCols = db.prepare('PRAGMA table_info(news)').all().map(c => c.name);
+const migrations = [
+  ['detail',               "ALTER TABLE news ADD COLUMN detail TEXT DEFAULT ''"],
+  ['impact',               "ALTER TABLE news ADD COLUMN impact TEXT DEFAULT ''"],
+  ['bitv_action',          "ALTER TABLE news ADD COLUMN bitv_action TEXT DEFAULT ''"],
+  ['business_category',    "ALTER TABLE news ADD COLUMN business_category TEXT DEFAULT ''"],
+  ['competitor_category',  "ALTER TABLE news ADD COLUMN competitor_category TEXT DEFAULT ''"],
+  ['sent_to_wecom',        'ALTER TABLE news ADD COLUMN sent_to_wecom INTEGER DEFAULT 0'],
+  ['alpha_score',          'ALTER TABLE news ADD COLUMN alpha_score INTEGER DEFAULT 0'],
+  ['normalized_title',     "ALTER TABLE news ADD COLUMN normalized_title TEXT DEFAULT ''; CREATE INDEX IF NOT EXISTS idx_normalized_title ON news(normalized_title)"],
+];
+migrations.forEach(([col, sql]) => {
+  if (!existingCols.includes(col)) { 
+    try { db.exec(sql); console.log(`[DB] Migrated: +${col}`); } catch(e) { console.error(`[DB] Migration failed for ${col}:`, e.message); }
+  }
+});
 
-    updateByUrl:   db.prepare('UPDATE news SET sent_to_wecom=1 WHERE url=?'),
-    updateByTitle: db.prepare('UPDATE news SET sent_to_wecom=1 WHERE title=? AND source=?'),
-    updateByNorm:  db.prepare('UPDATE news SET sent_to_wecom=1 WHERE normalized_title=?'),
+// ── 预编译 SQL（性能优化）────────────────────────────────────────────────────
+STMT = {
+  insert: db.prepare(`
+    INSERT INTO news
+      (title, normalized_title, content, detail, impact, bitv_action, source, url, category,
+       business_category, competitor_category, timestamp, is_important, alpha_score, sent_to_wecom)
+    VALUES
+      (@title, @normalized_title, @content, @detail, @impact, @bitv_action, @source, @url, @category,
+       @business_category, @competitor_category, @timestamp, @is_important, @alpha_score, @sent_to_wecom)
+    ON CONFLICT(title, source) DO UPDATE SET
+      url                 = CASE WHEN excluded.url != '' THEN excluded.url ELSE news.url END,
+      normalized_title    = excluded.normalized_title,
+      is_important        = MAX(news.is_important, excluded.is_important),
+      alpha_score         = MAX(news.alpha_score, excluded.alpha_score),
+      sent_to_wecom       = MAX(news.sent_to_wecom, excluded.sent_to_wecom),
+      business_category   = CASE WHEN excluded.business_category != '' THEN excluded.business_category ELSE news.business_category END,
+      competitor_category = CASE WHEN excluded.competitor_category != '' THEN excluded.competitor_category ELSE news.competitor_category END,
+      detail              = CASE WHEN excluded.detail != ''              THEN excluded.detail             ELSE news.detail END,
+      impact              = CASE WHEN excluded.impact != ''              THEN excluded.impact             ELSE news.impact END,
+      bitv_action         = CASE WHEN excluded.bitv_action != ''          THEN excluded.bitv_action        ELSE news.bitv_action END,
+      timestamp           = news.timestamp,   -- 保留首次入库时间
+      created_at          = news.created_at
+  `),
 
-    getByUrls:     (placeholders) => db.prepare(
-      `SELECT url, title, normalized_title, source, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`
-    ),
-    getByNorm:     db.prepare(
-      'SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE normalized_title=? ORDER BY sent_to_wecom DESC, timestamp DESC LIMIT 1'
-    ),
-    checkSent:     db.prepare(
-      'SELECT sent_to_wecom FROM news WHERE (url=? OR normalized_title=?) AND sent_to_wecom=1 LIMIT 1'
-    ),
+  updateByUrl:   db.prepare('UPDATE news SET sent_to_wecom=1 WHERE url=?'),
+  updateByTitle: db.prepare('UPDATE news SET sent_to_wecom=1 WHERE title=? AND source=?'),
+  updateByNorm:  db.prepare('UPDATE news SET sent_to_wecom=1 WHERE normalized_title=?'),
 
-    // Insights
-    insertInsight: db.prepare(`
-      INSERT INTO insights (trend_key, summary, evidence_count, first_seen, last_updated)
-      VALUES (@trend_key, @summary, @evidence_count, @first_seen, @last_updated)
-      ON CONFLICT(trend_key) DO UPDATE SET
-        summary = excluded.summary,
-        evidence_count = insights.evidence_count + 1,
-        last_updated = excluded.last_updated
-    `),
-    getInsights: db.prepare('SELECT * FROM insights ORDER BY last_updated DESC LIMIT ?'),
+  getByUrls:     (placeholders) => db.prepare(
+    `SELECT url, title, normalized_title, source, business_category, sent_to_wecom, timestamp FROM news WHERE url IN (${placeholders})`
+  ),
+  getByNorm:     db.prepare(
+    'SELECT url, sent_to_wecom, business_category, timestamp FROM news WHERE normalized_title=? ORDER BY sent_to_wecom DESC, timestamp DESC LIMIT 1'
+  ),
+  checkSent:     db.prepare(
+    'SELECT sent_to_wecom FROM news WHERE (url=? OR normalized_title=?) AND sent_to_wecom=1 LIMIT 1'
+  ),
 
-    // 统计
-    countAll:      db.prepare('SELECT COUNT(*) as n FROM news'),
-    countImportant:db.prepare('SELECT COUNT(*) as n FROM news WHERE is_important=1'),
-    countByCat:    db.prepare('SELECT business_category, COUNT(*) as n FROM news WHERE timestamp > ? AND business_category != \'\' GROUP BY business_category ORDER BY n DESC'),
-    countBySrc:    db.prepare('SELECT source, COUNT(*) as n FROM news GROUP BY source ORDER BY n DESC LIMIT 30'),
-  };
-}
+  // Insights
+  insertInsight: db.prepare(`
+    INSERT INTO insights (trend_key, summary, evidence_count, first_seen, last_updated)
+    VALUES (@trend_key, @summary, @evidence_count, @first_seen, @last_updated)
+    ON CONFLICT(trend_key) DO UPDATE SET
+      summary = excluded.summary,
+      evidence_count = insights.evidence_count + 1,
+      last_updated = excluded.last_updated
+  `),
+  getInsights: db.prepare('SELECT * FROM insights ORDER BY last_updated DESC LIMIT ?'),
+
+  // 统计
+  countAll:      db.prepare('SELECT COUNT(*) as n FROM news'),
+  countImportant:db.prepare('SELECT COUNT(*) as n FROM news WHERE is_important=1'),
+  countByCat:    db.prepare("SELECT business_category, COUNT(*) as n FROM news WHERE timestamp > ? AND business_category != '' GROUP BY business_category ORDER BY n DESC"),
+  countBySrc:    db.prepare('SELECT source, COUNT(*) as n FROM news GROUP BY source ORDER BY n DESC LIMIT 30'),
+};
 
 // ── saveNews ──────────────────────────────────────────────────────────────────
 async function saveNews(items) {
-  if (!USE_SUPABASE) {
-    // 1. SQLite 事务批量写入
-    const tx = db.transaction((rows) => {
-      for (const item of rows) {
-        const nTitle = normalizeKey(item.title, '').split('|')[0];
-        const row    = {
-          ...item,
-          normalized_title:    nTitle,
-          detail:              item.detail              || '',
-          business_category:   item.business_category   || '',
-          competitor_category: item.competitor_category || '',
-          sent_to_wecom:       item.sent_to_wecom        || 0,
-          content:             (item.content || '').substring(0, 500),
-        };
-        try {
-          STMT.insert.run(row);
-        } catch (err) {
-          if (err.message.includes('UNIQUE constraint failed: news.url')) {
-            // URL 冲突单独处理（更新除时间戳外的字段）
-            db.prepare(`
-              UPDATE news SET
-                title               = @title,
-                normalized_title    = @normalized_title,
-                is_important        = MAX(is_important, @is_important),
-                sent_to_wecom       = MAX(sent_to_wecom, @sent_to_wecom),
-                business_category   = CASE WHEN @business_category!='' THEN @business_category ELSE business_category END,
-                competitor_category = CASE WHEN @competitor_category!='' THEN @competitor_category ELSE competitor_category END,
-                detail              = CASE WHEN @detail!='' THEN @detail ELSE detail END
-              WHERE url = @url
-            `).run(row);
-          } else {
-            console.warn('[DB insert]', err.message?.substring(0, 80), '|', item.title?.substring(0, 40));
-          }
+  // 1. SQLite 事务批量写入 (Always run as primary or backup storage)
+  const tx = db.transaction((rows) => {
+    for (const item of rows) {
+      const nTitle = normalizeKey(item.title, '').split('|')[0];
+      const row    = {
+        ...item,
+        normalized_title:    nTitle,
+        detail:              item.detail              || '',
+        business_category:   item.business_category   || '',
+        competitor_category: item.competitor_category || '',
+        sent_to_wecom:       item.sent_to_wecom        || 0,
+        content:             (item.content || '').substring(0, 500),
+      };
+      try {
+        STMT.insert.run(row);
+      } catch (err) {
+        if (err.message.includes('UNIQUE constraint failed: news.url')) {
+          // URL 冲突单独处理（更新除时间戳外的字段）
+          db.prepare(`
+            UPDATE news SET
+              title               = @title,
+              normalized_title    = @normalized_title,
+              is_important        = MAX(is_important, @is_important),
+              sent_to_wecom       = MAX(sent_to_wecom, @sent_to_wecom),
+              business_category   = CASE WHEN @business_category!='' THEN @business_category ELSE business_category END,
+              competitor_category = CASE WHEN @competitor_category!='' THEN @competitor_category ELSE competitor_category END,
+              detail              = CASE WHEN @detail!='' THEN @detail ELSE detail END
+            WHERE url = @url
+          `).run(row);
+        } else {
+          console.warn('[DB insert]', err.message?.substring(0, 80), '|', item.title?.substring(0, 40));
         }
       }
-    });
+    }
+  });
 
-    try { tx(items); } catch (e) { console.error('[DB saveNews fatal]', e.message); }
-  }
+  try { tx(items); } catch (e) { console.error('[DB saveNews fatal]', e.message); }
+
 
   // 2. Supabase 同步（批量 upsert）
   if (USE_SUPABASE && supabase && items.length > 0) {
@@ -691,6 +690,7 @@ async function checkIfSent(url, nTitle) {
 module.exports = { 
   db, 
   supabase,
+  STMT,
   saveNews, 
   getNews, 
   getStats, 

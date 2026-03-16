@@ -26,9 +26,12 @@ const TWITTER_CONFIG = {
 
   // RSSHub 镜像
   RSSHUB_INSTANCES: [
-    'https://rsshub.app',
     'https://rsshub.rssforever.com',
-    'https://rsshub.anyant.xyz',
+    'https://hub.slarker.me',
+    'https://rsshub.liumingye.cn',
+    'https://rsshub.pseudoyu.com',
+    'https://rsshub-instance.zeabur.app',
+    'https://rsshub.app',
   ],
 
   // 第三方 API 服务（备用）

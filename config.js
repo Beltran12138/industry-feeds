@@ -38,10 +38,12 @@ const KOL_LIST = [
 // RSS/Nitter 备用源（按优先级排序）
 // nitter.net 已关闭，使用 RSSHub 实例作为主力
 const RSS_BASE_URLS = [
-  'https://rsshub.app/twitter/user',
   'https://rsshub.rssforever.com/twitter/user',
-  'https://rsshub.moeyy.cn/twitter/user',
-  'https://rss.fatpandac.com/twitter/user',
+  'https://hub.slarker.me/twitter/user',
+  'https://rsshub.liumingye.cn/twitter/user',
+  'https://rsshub.pseudoyu.com/twitter/user',
+  'https://rsshub-instance.zeabur.app/twitter/user',
+  'https://rsshub.app/twitter/user',
 ];
 
 // ── 重要性判定规则 ─────────────────────────────────────────────────────────────

@@ -65,6 +65,14 @@ class PushChannel {
     }, 60000); // 每分钟重置计数
   }
 
+  // 清理资源，防止测试挂起
+  cleanup() {
+    if (this.resetInterval) {
+      clearInterval(this.resetInterval);
+      this.resetInterval = null;
+    }
+  }
+
   async send(message) {
     throw new Error('Subclasses must implement send()');
   }
@@ -432,6 +440,14 @@ class PushManager {
 
     console.log(`[PushManager] Initialized with ${this.channels.size} channels:`,
       Array.from(this.channels.keys()).join(', '));
+  }
+
+  // 清理所有渠道的资源
+  cleanup() {
+    for (const channel of this.channels.values()) {
+      if (channel.cleanup) channel.cleanup();
+    }
+    console.log('[PushManager] Resources cleaned up');
   }
 
   // 获取所有启用的渠道
