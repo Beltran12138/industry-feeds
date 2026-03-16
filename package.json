@@ -33,7 +33,7 @@
     "release": "standard-version",
     "release:minor": "standard-version --release-as minor",
     "release:major": "standard-version --release-as major",
-    "install:optional": "npm install js-yaml @notionhq/client @octokit/rest"
+    "install:optional": "npm install js-yaml"
   },
   "keywords": [
     "web3",
@@ -76,9 +76,7 @@
     "standard-version": "^9.5.0"
   },
   "optionalDependencies": {
-    "js-yaml": "^4.1.0",
-    "@notionhq/client": "^2.2.15",
-    "@octokit/rest": "^21.0.0"
+    "js-yaml": "^4.1.0"
   },
   "peerDependencies": {
     "node": ">=20.x"
