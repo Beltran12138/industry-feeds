@@ -1,11 +1,45 @@
 {
   "version": 2,
+  "name": "alpha-radar",
   "buildCommand": "npm run build:frontend",
   "builds": [
-    { "src": "server.js", "use": "@vercel/node" }
+    { "src": "server.js", "use": "@vercel/node" },
+    { "src": "public/**", "use": "@vercel/static" }
   ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/server.js" },
-    { "source": "/(.*)", "destination": "/server.js" }
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "server.js"
+    },
+    {
+      "src": "/health-monitor",
+      "dest": "/public/health.html"
+    },
+    {
+      "src": "/feed.rss",
+      "dest": "/api/feed.rss"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "VERCEL": "true"
+  },
+  "crons": [
+    {
+      "path": "/api/scrape?tier=high",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/scrape?tier=low",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/health/check",
+      "schedule": "0 * * * *"
+    }
   ]
 }

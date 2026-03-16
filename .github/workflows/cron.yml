@@ -1,0 +1,151 @@
+name: Alpha Radar Cron Jobs
+
+on:
+  schedule:
+    # 高频抓取 - 每 5 分钟（UTC 时间）
+    - cron: '*/5 * * * *'
+    # 低频抓取 - 每 30 分钟（UTC 时间）
+    - cron: '*/30 * * * *'
+    # 健康检查 - 每小时
+    - cron: '0 * * * *'
+    # 日报 - 每天 10:00 UTC (18:00 北京时间)
+    - cron: '0 10 * * *'
+    # 周报 - 每周五 10:00 UTC (18:00 北京时间)
+    - cron: '0 10 * * 5'
+    # Notion 同步 - 每 6 小时
+    - cron: '0 */6 * * *'
+    # GitHub 每日导出 - 每天 16:30 UTC (00:30 北京时间次日)
+    - cron: '30 16 * * *'
+
+jobs:
+  scrape-high:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/5 * * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run high-frequency scrape
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          USE_SUPABASE: ${{ secrets.USE_SUPABASE || 'false' }}
+        run: npm run scrape:high
+
+  scrape-low:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '*/30 * * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run low-frequency scrape
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          USE_SUPABASE: ${{ secrets.USE_SUPABASE || 'false' }}
+        run: npm run scrape:low
+
+  health-check:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 * * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run health check
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node -e "const {sourceHealthMonitor} = require('./monitoring/source-health'); sourceHealthMonitor.checkHealthAndAlert()"
+
+  daily-report:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 10 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run daily report
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run daily-report
+
+  weekly-report:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 10 * * 5'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run weekly report
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          WECOM_WEBHOOK_URL: ${{ secrets.WECOM_WEBHOOK_URL }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: npm run weekly-report
+
+  notion-sync:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '0 */6 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Sync to Notion
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: node -e "const {notionIntegration} = require('./integrations/notion'); const {db} = require('./db'); const stmt = db.prepare('SELECT * FROM news WHERE timestamp > ? AND alpha_score >= 85 ORDER BY timestamp DESC LIMIT 20'); const items = stmt.all(Date.now() - 6*60*60*1000); notionIntegration.syncBatch(items, {minScore: 85}).then(r => console.log(r))"
+
+  github-export:
+    runs-on: ubuntu-latest
+    if: github.event.schedule == '30 16 * * *'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Export to GitHub Releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: node -e "const {githubIntegration} = require('./integrations/github'); const {db} = require('./db'); const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); const dateStr = yesterday.toISOString().split('T')[0]; const start = new Date(dateStr).getTime(); const end = start + 86400000; const items = db.prepare('SELECT * FROM news WHERE timestamp >= ? AND timestamp < ? ORDER BY alpha_score DESC').all(start, end); githubIntegration.exportDailyToRelease(items, dateStr).then(r => console.log(r))"
