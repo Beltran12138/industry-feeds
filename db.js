@@ -75,7 +75,7 @@ const USE_SUPABASE = (process.env.USE_SUPABASE || '').trim() === 'true';
 const IS_VERCEL = process.env.VERCEL === 'true';
 
 let supabase = null;
-if (USE_SUPABASE && process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+if ((USE_SUPABASE || IS_VERCEL) && process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
   supabase = createClient(process.env.SUPABASE_URL.trim(), process.env.SUPABASE_KEY.trim());
 } else if (USE_SUPABASE) {
   console.log('[DB] Supabase enabled but missing credentials');
@@ -337,8 +337,16 @@ async function saveNews(items) {
 
 // ── getNews（增加搜索参数）───────────────────────────────────────────────────
 async function getNews(limit = 100, source = null, important = 0, search = '') {
-  if (USE_SUPABASE && supabase) {
-    return await getNewsFromSupabase(limit, source, important, search);
+  // 在 Vercel 环境下，如果没有明确禁用 Supabase 且凭据存在，优先使用 Supabase
+  const shouldTrySupabase = (USE_SUPABASE || IS_VERCEL) && supabase;
+  
+  if (shouldTrySupabase) {
+    const supabaseNews = await getNewsFromSupabase(limit, source, important, search);
+    // 如果 Supabase 有数据，直接返回
+    if (supabaseNews && supabaseNews.length > 0) {
+      return supabaseNews;
+    }
+    // 如果是 Vercel 且 Supabase 没数据，可能还没同步，继续尝试本地（虽然 Vercel 本地通常为空）
   }
   
   // 生成缓存键
@@ -422,6 +430,25 @@ async function getNewsFromSupabase(limit = 100, source = null, important = 0, se
 
 // ── getStats（供健康检查 + 前端图表使用）──────────────────────────────────────
 async function getStats(since = 0) {
+  // 在 Vercel 环境下优先使用 Supabase
+  if ((USE_SUPABASE || IS_VERCEL) && supabase) {
+    try {
+      const { data: countData } = await supabase.from('news').select('is_important', { count: 'exact', head: true });
+      const { data: impData } = await supabase.from('news').select('is_important', { count: 'exact', head: true }).eq('is_important', 1);
+      
+      // 注意：复杂的聚合查询在 Supabase client 中较难直接通过 select 实现
+      // 这里可以简单返回计数，或者后续扩展为调用 RPC
+      return {
+        total: countData?.length || 0,
+        important: impData?.length || 0,
+        sources: [],
+        categories: []
+      };
+    } catch (e) {
+      console.error('[Supabase getStats]', e.message);
+    }
+  }
+
   // 尝试从 Redis 缓存获取（如果启用）
   let cacheKey = `stats:${since || 'all'}`;
   let cached = null;
