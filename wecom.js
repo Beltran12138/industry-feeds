@@ -35,14 +35,14 @@ async function sendToWeCom(item, options = {}) {
         card_type: 'text_notice',
         source: {
           icon_url: 'https://files.catbox.moe/ksw38s.png', // 一个雷达小图标示例
-          desc: 'Alpha-Radar 战略预警',
+          desc: 'Web3行业动态',
           desc_color: 1,
         },
         main_title: {
           title: urgentPrefix + item.title,
-          desc: `${scoreEmoji} ${item.business_category || '快讯'} | 价值分: ${item.alpha_score || (item.is_important ? 85 : 50)}`,
+          desc: `${scoreEmoji} ${item.business_category || '快讯'}`,
         },
-        sub_title_text: (item.detail || '（暂无摘要）') + (item.bitv_action ? `\n💡 建议: ${item.bitv_action}` : ''),
+        sub_title_text: item.detail || '（暂无摘要）',
         horizontal_content_list: [
           {
             keyname: '情报维度',
@@ -70,18 +70,13 @@ async function sendToWeCom(item, options = {}) {
           },
           {
             type: 1,
-            url: `${DASHBOARD_URL}/?q=${encodeURIComponent(item.title)}&deep_ask=true`,
-            title: '深度追问',
-          },
-          {
-            type: 1,
             url: DASHBOARD_URL,
-            title: item.bitv_action ? `建议: ${item.bitv_action}` : '查看情报看板',
+            title: '查看情报看板',
           },
         ],
         card_action: {
           type: 1,
-          url: `${DASHBOARD_URL}/?q=${encodeURIComponent(item.title)}&deep_ask=true`,
+          url: item.url || DASHBOARD_URL,
           appid: '',
           pagepath: '',
         },

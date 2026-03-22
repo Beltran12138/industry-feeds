@@ -217,21 +217,9 @@ class SourceHealthMonitor {
    * 发送告警消息
    */
   async sendAlert(alert) {
-    const emoji = alert.type === 'error' ? '🔴' : alert.type === 'timeout' ? '⚠️' : '🟡';
-    const title = `${emoji} 数据源告警：${alert.source}`;
-    const content = `**类型：** ${alert.message}\n\n` +
-                    `**详情：** ${alert.details}\n\n` +
-                    `**建议操作：** 检查数据源配置和网络连接，必要时手动触发抓取。\n\n` +
-                    `---\n*Alpha Radar 数据源健康监控系统*`;
-
-    console.log(`[SourceHealth] Sending alert for ${alert.source}: ${alert.message}`);
-
-    try {
-      await pushManager.sendImportant(title, content);
-      this.alertHistory.set(`${alert.source}:${alert.type}`, Date.now());
-    } catch (err) {
-      console.error('[SourceHealth] Failed to send alert:', err.message);
-    }
+    // 数据源告警推送已禁用，仅记录日志
+    console.log(`[SourceHealth] Alert (push disabled): ${alert.source} — ${alert.message}`);
+    this.alertHistory.set(`${alert.source}:${alert.type}`, Date.now());
   }
 
   /**

@@ -340,9 +340,10 @@ async function scrapePRNewswire() {
       const titleEl = $(el).find('h3, h2, .title, [class*="title"], [class*="headline"]').first();
       let title     = (titleEl.length ? titleEl.text() : rawText).trim();
 
-      // 清理标题：移除日期前缀、多余空白、换行符、制表符
+      // 清理标题：移除日期前缀、时间前缀、多余空白、换行符、制表符
       title = title
-        .replace(/^\d{1,2}\s+\w{3},\s+\d{4},?\s+[\d:]+\s*[A-Z]+\s*/i, '')  // 日期前缀
+        .replace(/^\d{1,2}\s+\w{3},\s+\d{4},?\s+[\d:]+\s*[A-Z]+\s*/i, '')  // 日期前缀 "12 Mar, 2026, 22:27 CST"
+        .replace(/^\d{1,2}:\d{2}\s+[A-Z]{2,4}\s*/i, '')  // 时间前缀 "15:04 CST"
         .replace(/[\t\n\r]+/g, ' ')  // 换行/制表符转空格
         .replace(/\s+/g, ' ')        // 多个空格合并
         .trim();

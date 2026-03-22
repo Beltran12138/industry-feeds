@@ -158,7 +158,15 @@ async function scrapeWuBlock() {
         const href  = a.href;
         const title = a.innerText.trim();
         if (href.includes('a=show') && title.length > 10 && title.includes('香港')) {
-          const normalizedUrl = href.split('#')[0].replace(/\/$/, '');
+          // 仅保留 id 参数作为唯一标识，去除 keyword 等可变参数
+          let normalizedUrl;
+          try {
+            const u = new URL(href);
+            const id = u.searchParams.get('id');
+            normalizedUrl = id ? `${u.origin}${u.pathname}?a=show&id=${id}` : href.split('#')[0].replace(/\/$/, '');
+          } catch(e) {
+            normalizedUrl = href.split('#')[0].replace(/\/$/, '');
+          }
           const normalizedTitle = title.toLowerCase().replace(/\s+/g, ' ').trim();
 
           if (seenUrls.has(normalizedUrl) || seenTitles.has(normalizedTitle)) return;
@@ -181,7 +189,7 @@ async function scrapeWuBlock() {
             title,
             content: '',
             source: 'WuBlock',
-            url: href,
+            url: normalizedUrl,
             category: 'HK',
             timestamp: timestamp || 0,
             is_important: 0,

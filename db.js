@@ -104,7 +104,8 @@ function normalizeKey(title, source) {
   return source ? `${normalized}|${source.trim().toLowerCase()}` : normalized;
 }
 
-// Always initialize SQLite as a local cache/secondary storage
+// SQLite 仅在非 Vercel 环境下初始化（Vercel 不支持 better-sqlite3 原生模块）
+if (!IS_VERCEL) {
 const Database = require('better-sqlite3');
 db = new Database(path.join(__dirname, 'alpha_radar.db'));
 
@@ -246,13 +247,15 @@ STMT = {
   countByCat:    db.prepare("SELECT business_category, COUNT(*) as n FROM news WHERE timestamp > ? AND business_category != '' GROUP BY business_category ORDER BY n DESC"),
   countBySrc:    db.prepare('SELECT source, COUNT(*) as n FROM news GROUP BY source ORDER BY n DESC LIMIT 30'),
 };
+} // end if (!IS_VERCEL)
 
 // ── saveNews ──────────────────────────────────────────────────────────────────
 async function saveNews(items) {
   // 预处理：清理所有文本字段的编码问题
   const cleanedItems = items.map(item => cleanObjectStrings(item));
   
-  // 1. SQLite 事务批量写入 (Always run as primary or backup storage)
+  // 1. SQLite 事务批量写入（仅非 Vercel 环境）
+  if (db) {
   const tx = db.transaction((rows) => {
     for (const item of rows) {
       const nTitle = normalizeKey(item.title, '').split('|')[0];
@@ -298,7 +301,7 @@ async function saveNews(items) {
   });
 
   try { tx(cleanedItems); } catch (e) { console.error('[DB saveNews fatal]', e.message); }
-
+  } // end if (db)
 
   // 2. Supabase 同步（批量 upsert）
   if (USE_SUPABASE && supabase && items.length > 0) {
@@ -386,6 +389,7 @@ async function getNews(limit = 100, source = null, important = 0, search = '') {
   sql += 'ORDER BY timestamp DESC LIMIT ?';
   params.push(limit);
 
+  if (!db) return [];
   const result = db.prepare(sql).all(...params);
   
   // 存入 Redis 缓存（2 分钟，新闻更新频繁）
@@ -433,15 +437,19 @@ async function getStats(since = 0) {
   // 在 Vercel 环境下优先使用 Supabase
   if ((USE_SUPABASE || IS_VERCEL) && supabase) {
     try {
-      const { data: countData } = await supabase.from('news').select('is_important', { count: 'exact', head: true });
-      const { data: impData } = await supabase.from('news').select('is_important', { count: 'exact', head: true }).eq('is_important', 1);
-      
-      // 注意：复杂的聚合查询在 Supabase client 中较难直接通过 select 实现
-      // 这里可以简单返回计数，或者后续扩展为调用 RPC
+      const [{ count: total }, { count: important }, { data: srcRows }] = await Promise.all([
+        supabase.from('news').select('*', { count: 'exact', head: true }),
+        supabase.from('news').select('*', { count: 'exact', head: true }).eq('is_important', 1),
+        supabase.from('news').select('source'),
+      ]);
+      // 客户端聚合 sources（Supabase 免费层无 RPC）
+      const srcMap = {};
+      (srcRows || []).forEach(r => { if (r.source) srcMap[r.source] = (srcMap[r.source] || 0) + 1; });
+      const sources = Object.entries(srcMap).map(([source, n]) => ({ source, n })).sort((a, b) => b.n - a.n);
       return {
-        total: countData?.length || 0,
-        important: impData?.length || 0,
-        sources: [],
+        total: total || 0,
+        important: important || 0,
+        sources,
         categories: []
       };
     } catch (e) {
@@ -467,6 +475,7 @@ async function getStats(since = 0) {
   
   // 优先使用本地 SQLite 统计（保证数据一致性）
   // 即使配置了 Supabase，也先返回本地数据（更快、更可靠）
+  if (!STMT) return { total: 0, important: 0, categories: [], sources: [] };
   const total = STMT.countAll.get().n;
   const important = STMT.countImportant.get().n;
   const sources = STMT.countBySrc.all();
