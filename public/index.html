@@ -8,6 +8,7 @@
   <meta name="theme-color" content="#16213e">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>tailwind.config={darkMode:'class'}</script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -60,6 +61,23 @@
     .dark .bg-red-50{background:#450a0a !important}
     .dark .bg-emerald-50{background:#052e16 !important}
     .dark .bg-indigo-50{background:#1e1b4b !important}
+    /* Dark mode: colored text */
+    .dark .text-red-600{color:#f87171 !important}
+    .dark .text-red-500{color:#f87171 !important}
+    .dark .text-emerald-600{color:#34d399 !important}
+    .dark .text-indigo-500{color:#818cf8 !important}
+    .dark .hover\:text-indigo-700:hover{color:#818cf8 !important}
+    .dark .hover\:text-black:hover{color:#f1f5f9 !important}
+    /* Dark mode: colored borders */
+    .dark .border-red-100{border-color:#7f1d1d !important}
+    .dark .border-blue-100{border-color:#1e3a8a !important}
+    .dark .border-emerald-100{border-color:#064e3b !important}
+    .dark .border-indigo-100{border-color:#312e81 !important}
+    /* Dark mode: hover backgrounds */
+    .dark .hover\:bg-blue-100:hover{background:#1e3a5f !important}
+    .dark .hover\:bg-indigo-100:hover{background:#312e81 !important}
+    /* Dark mode: indigo-50/30 opacity variant */
+    .dark .bg-indigo-50\/30{background:rgba(49,46,129,0.25) !important}
     /* Export modal */
     .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:center;justify-content:center}
     .modal-content{background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2)}

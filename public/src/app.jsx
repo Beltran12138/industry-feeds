@@ -1184,7 +1184,7 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
                               {/* 时间轴左侧 */}
                               <div className="w-16 shrink-0 flex items-start justify-end pt-1 gap-2">
                                 <span className="text-[13px] font-medium text-slate-400 mt-[2px]">{timeStr}</span>
-                                <div className="w-2 h-2 rounded-full bg-blue-600 mt-[7px] shrink-0 outline outline-4 outline-[#fcfcfd]" />
+                                <div className="w-2 h-2 rounded-full bg-blue-600 mt-[7px] shrink-0 outline outline-4 outline-[var(--bg)]" />
                               </div>
 
                               {/* 内容卡片 */}
