@@ -340,7 +340,7 @@ ${fmt(otherItems)}
 📊 **本周总结论** (3-4句，概括整体趋势)
 
 🏆 **竞品格局**
-• **香港合规所**（HashKey/OSL）: [本周动作]
+• **香港合规所**（HashKey/OSL/Exio）: [本周动作]
 • **头部离岸所**（OKX/Bybit/Gate/MEXC等）: [本周动作]
 • **政策环境**: [监管趋势]
 
@@ -400,7 +400,7 @@ function generateRuleBasedWeeklySummary(newsItems, stats = {}) {
 
   // 香港合规所
   const hkItems = importantItems.filter(i => i.competitor_category === '香港合规所').slice(0, 3);
-  summary += '• **香港合规所**（HashKey/OSL）:\n';
+  summary += '• **香港合规所**（HashKey/OSL/Exio）:\n';
   if (hkItems.length > 0) {
     hkItems.forEach(i => summary += `  - ${i.source}: ${i.title.slice(0, 40)}...\n`);
   } else {

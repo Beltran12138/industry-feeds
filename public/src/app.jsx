@@ -945,8 +945,8 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
               <i className="fa-solid fa-rss text-white text-lg"/>
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-tight leading-none">Alpha Radar</h1>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">情报引擎 v2.0</p>
+              <h1 className="text-lg font-black tracking-tight leading-none">Web3行业动态</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">行业情报中枢</p>
             </div>
           </div>
 
@@ -1322,7 +1322,7 @@ const { useState, useEffect, useCallback, useRef, useMemo } = React;
           </div>
 
           <div className="mt-auto py-4 border-t border-slate-50 text-center">
-            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[.3em]">Alpha Radar v2.0</span>
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[.3em]">Web3行业动态</span>
           </div>
         </aside>
 

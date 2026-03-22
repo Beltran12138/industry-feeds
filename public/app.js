@@ -1,6 +1,1338 @@
-const{useState,useEffect,useCallback,useRef,useMemo}=React;function useDarkMode(){const[l,d]=useState(()=>{const n=localStorage.getItem("darkMode");return n!==null?n==="true":window.matchMedia("(prefers-color-scheme: dark)").matches});return useEffect(()=>{document.documentElement.classList.toggle("dark",l),localStorage.setItem("darkMode",l)},[l]),[l,d]}function ExportModal({news:l,onClose:d}){const[n,i]=useState("csv"),[r,g]=useState(7),[s,o]=useState(!1),m=async()=>{o(!0);try{if(n==="csv")window.open(`/api/export?format=csv&days=${r}`,"_blank");else if(n==="json"){const u=await(await fetch(`/api/export?format=json&days=${r}`)).json(),N=new Blob([JSON.stringify(u.data,null,2)],{type:"application/json"}),x=URL.createObjectURL(N),p=document.createElement("a");p.href=x,p.download=`alpha-radar-${r}d.json`,p.click(),URL.revokeObjectURL(x)}else if(n==="clipboard"){const c=Date.now()-r*864e5,N=l.filter(x=>(x.timestamp||0)>=c).map(x=>`[${x.source}] ${x.title}${x.detail?" - "+x.detail:""} (${x.business_category||""})`).join(`
-`);await navigator.clipboard.writeText(N),alert("已复制到剪贴板")}d()}catch(c){console.error("Export error:",c),alert("导出失败: "+c.message)}finally{o(!1)}};return React.createElement("div",{className:"modal-overlay",onClick:d},React.createElement("div",{className:"modal-content",onClick:c=>c.stopPropagation()},React.createElement("div",{className:"flex justify-between items-center mb-6"},React.createElement("h2",{className:"text-lg font-black"},"导出数据"),React.createElement("button",{onClick:d,className:"p-2 hover:bg-slate-100 rounded-lg"},React.createElement("i",{className:"fa-solid fa-xmark"}))),React.createElement("div",{className:"space-y-4"},React.createElement("div",null,React.createElement("label",{className:"text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block"},"导出格式"),React.createElement("div",{className:"flex gap-2"},[["csv","CSV"],["json","JSON"],["clipboard","剪贴板"]].map(([c,u])=>React.createElement("button",{key:c,onClick:()=>i(c),className:`px-4 py-2 rounded-xl text-sm font-medium transition-all ${n===c?"bg-blue-500 text-white":"bg-slate-100 text-slate-600 hover:bg-slate-200"}`},u)))),React.createElement("div",null,React.createElement("label",{className:"text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block"},"时间范围"),React.createElement("div",{className:"flex gap-2"},[1,7,14,30,90].map(c=>React.createElement("button",{key:c,onClick:()=>g(c),className:`px-3 py-2 rounded-xl text-sm font-medium transition-all ${r===c?"bg-blue-500 text-white":"bg-slate-100 text-slate-600 hover:bg-slate-200"}`},c,"天")))),React.createElement("button",{onClick:m,disabled:s,className:"w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50"},s?"导出中...":"导出"))))}function MonitoringPanel(){const[l,d]=useState(null),[n,i]=useState(null),[r,g]=useState(null);return useEffect(()=>{Promise.all([fetch("/api/monitoring").then(s=>s.json()).catch(()=>null),fetch("/api/quality").then(s=>s.json()).catch(()=>null),fetch("/api/cache-status").then(s=>s.json()).catch(()=>null)]).then(([s,o,m])=>{s?.success&&d(s.data),o?.success&&i(o.data),m?.success&&g(m.data)})},[]),React.createElement("div",{className:"p-6 md:p-10 space-y-6"},React.createElement("header",{className:"mb-4"},React.createElement("h2",{className:"text-2xl font-black tracking-tight"},React.createElement("i",{className:"fa-solid fa-heart-pulse text-red-400 mr-2"}),"系统监控")),React.createElement("div",{className:"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"},React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h3",{className:"text-xs font-black uppercase tracking-wider text-slate-400 mb-4"},React.createElement("i",{className:"fa-solid fa-brain mr-1"})," AI 状态"),l?.ai?React.createElement("div",{className:"space-y-3"},React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"当前提供商"),React.createElement("span",{className:"text-sm font-bold"},l.ai.current)),l.ai.degradedAt&&React.createElement("div",{className:"text-xs text-amber-500 font-medium"},React.createElement("i",{className:"fa-solid fa-triangle-exclamation mr-1"}),"已降级 ",Math.floor((Date.now()-l.ai.degradedAt)/36e5),"h"),React.createElement("div",{className:"text-xs text-slate-400"},"降级历史: ",l.ai.history?.length||0," 次")):React.createElement("p",{className:"text-sm text-slate-400"},"数据加载中...")),React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h3",{className:"text-xs font-black uppercase tracking-wider text-slate-400 mb-4"},React.createElement("i",{className:"fa-solid fa-shield-check mr-1"})," 数据质量"),n?React.createElement("div",{className:"space-y-3"},React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"已验证"),React.createElement("span",{className:"text-sm font-bold"},n.total)),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"通过率"),React.createElement("span",{className:"text-sm font-bold text-emerald-500"},n.total>0?(n.passed/n.total*100).toFixed(0):0,"%")),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"失败"),React.createElement("span",{className:"text-sm font-bold text-red-500"},n.failed))):React.createElement("p",{className:"text-sm text-slate-400"},"暂无数据")),React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h3",{className:"text-xs font-black uppercase tracking-wider text-slate-400 mb-4"},React.createElement("i",{className:"fa-solid fa-database mr-1"})," 查询缓存"),r?React.createElement("div",{className:"space-y-3"},React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"命中率"),React.createElement("span",{className:"text-sm font-bold text-blue-500"},r.hitRate)),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-sm"},"缓存条目"),React.createElement("span",{className:"text-sm font-bold"},r.size," / ",r.maxEntries))):React.createElement("p",{className:"text-sm text-slate-400"},"暂无数据"))),l?.scrapers&&Object.keys(l.scrapers).length>0&&React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h3",{className:"text-xs font-black uppercase tracking-wider text-slate-400 mb-4"},React.createElement("i",{className:"fa-solid fa-spider mr-1"})," 爬虫状态"),React.createElement("div",{className:"overflow-x-auto"},React.createElement("table",{className:"w-full text-sm"},React.createElement("thead",null,React.createElement("tr",{className:"text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100"},React.createElement("th",{className:"text-left py-2 pr-4"},"数据源"),React.createElement("th",{className:"text-right py-2 px-3"},"成功率"),React.createElement("th",{className:"text-right py-2 px-3"},"总条目"),React.createElement("th",{className:"text-right py-2 px-3"},"连续失败"),React.createElement("th",{className:"text-right py-2 pl-3"},"最后错误"))),React.createElement("tbody",null,Object.entries(l.scrapers).map(([s,o])=>React.createElement("tr",{key:s,className:"border-b border-slate-50"},React.createElement("td",{className:"py-2 pr-4 font-medium"},s),React.createElement("td",{className:"text-right py-2 px-3"},React.createElement("span",{className:`font-bold ${parseFloat(o.successRate)>=80?"text-emerald-500":"text-red-500"}`},o.successRate)),React.createElement("td",{className:"text-right py-2 px-3"},o.totalItems),React.createElement("td",{className:"text-right py-2 px-3"},o.consecutive>0&&React.createElement("span",{className:"text-red-500 font-bold"},o.consecutive),o.consecutive===0&&React.createElement("span",{className:"text-slate-300"},"0")),React.createElement("td",{className:"text-right py-2 pl-3 text-xs text-slate-400 max-w-[200px] truncate"},o.lastError||"-"))))))),l?.recentErrors?.length>0&&React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h3",{className:"text-xs font-black uppercase tracking-wider text-red-400 mb-4"},React.createElement("i",{className:"fa-solid fa-circle-exclamation mr-1"})," 近期错误"),React.createElement("div",{className:"space-y-2 max-h-64 overflow-y-auto scrollbar-hide"},l.recentErrors.map((s,o)=>React.createElement("div",{key:o,className:"text-xs p-3 bg-red-50 dark:bg-red-950 rounded-xl border border-red-100 dark:border-red-900"},React.createElement("span",{className:"font-bold text-red-600 mr-2"},"[",s.category,"]"),React.createElement("span",{className:"text-red-500"},s.message),React.createElement("span",{className:"text-slate-400 ml-2"},new Date(s.ts).toLocaleTimeString("zh-CN")))))))}const isLocal=["localhost","127.0.0.1"].includes(window.location.hostname);let sbClient=null;const SOURCE_GROUPS={EXCHANGE:["Binance","OKX","Bybit","Gate","MEXC","Bitget","HTX","KuCoin"],MARKET:["Poly-Breaking","Poly-China"],SOCIAL:["WuShuo","Phyrex","JustinSun","XieJiayin","TwitterAB"],MEDIA:["BlockBeats","TechFlow","PRNewswire","HashKeyGroup","WuBlock","OSL","HashKeyExchange","Exio","TechubNews"]},SOURCES=[{id:"All",label:"全部动态",icon:"fa-layer-group",group:"CORE"},{id:"Important",label:"重要信号",icon:"fa-bolt",group:"CORE"},{id:"Binance",label:"Binance",icon:"fa-b",group:"EXCHANGE"},{id:"OKX",label:"OKX",icon:"fa-circle-dot",group:"EXCHANGE"},{id:"Bybit",label:"Bybit",icon:"fa-circle",group:"EXCHANGE"},{id:"Gate",label:"Gate.io",icon:"fa-g",group:"EXCHANGE"},{id:"MEXC",label:"MEXC",icon:"fa-m",group:"EXCHANGE"},{id:"Bitget",label:"Bitget",icon:"fa-coins",group:"EXCHANGE"},{id:"HTX",label:"HTX",icon:"fa-h",group:"EXCHANGE"},{id:"KuCoin",label:"KuCoin",icon:"fa-k",group:"EXCHANGE"},{id:"Poly-Breaking",label:"Poly 突发",icon:"fa-chart-line",group:"MARKET"},{id:"Poly-China",label:"Poly 中国",icon:"fa-flag",group:"MARKET"},{id:"WuShuo",label:"吴说",icon:"fa-brands fa-x-twitter",group:"SOCIAL"},{id:"Phyrex",label:"Phyrex",icon:"fa-brands fa-x-twitter",group:"SOCIAL"},{id:"JustinSun",label:"Justin Sun",icon:"fa-brands fa-x-twitter",group:"SOCIAL"},{id:"XieJiayin",label:"XieJiayin",icon:"fa-brands fa-x-twitter",group:"SOCIAL"},{id:"TwitterAB",label:"Twitter AB",icon:"fa-brands fa-x-twitter",group:"SOCIAL"},{id:"BlockBeats",label:"BlockBeats",icon:"fa-newspaper",group:"MEDIA"},{id:"TechFlow",label:"TechFlow",icon:"fa-newspaper",group:"MEDIA"},{id:"PRNewswire",label:"PR Newswire",icon:"fa-newspaper",group:"MEDIA"},{id:"HashKeyGroup",label:"HashKey Group",icon:"fa-building",group:"MEDIA"},{id:"WuBlock",label:"WuBlock",icon:"fa-newspaper",group:"MEDIA"},{id:"OSL",label:"OSL",icon:"fa-building",group:"MEDIA"},{id:"HashKeyExchange",label:"HashKey Exchange",icon:"fa-building",group:"MEDIA"},{id:"Exio",label:"EX.IO",icon:"fa-building",group:"MEDIA"},{id:"TechubNews",label:"Techub News",icon:"fa-newspaper",group:"MEDIA"}],NAV_GROUPS=["CORE","EXCHANGE","MARKET","SOCIAL","MEDIA"];function getSourceStyle(l){return SOURCE_GROUPS.EXCHANGE.includes(l)?"bg-slate-800 text-white":SOURCE_GROUPS.MARKET.includes(l)?"bg-purple-600 text-white":SOURCE_GROUPS.SOCIAL.includes(l)?"bg-sky-500 text-white":"bg-slate-200 text-slate-700"}function ScoreBadge({score:l}){if(!l&&l!==0)return null;let d,n;return l>=90?(d="score-critical",n="🔥"):l>=70?(d="score-high",n="⭐"):(d="score-medium",n="📡"),React.createElement("span",{className:`text-[11px] px-2 py-0.5 rounded-md font-mono ${d}`},n," ",l)}function highlight(l,d){return!d||!l?l:l.split(new RegExp(`(${d.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")})`,"gi")).map((i,r)=>i.toLowerCase()===d.toLowerCase()?React.createElement("mark",{key:r},i):i)}function InsightsPanel(){const[l,d]=useState([]),[n,i]=useState(!0);return useEffect(()=>{fetch("/api/insights").then(r=>r.json()).then(r=>{r.success&&d(r.data)}).catch(()=>{}).finally(()=>i(!1))},[]),n?React.createElement("div",{className:"p-8 text-center text-slate-400"},"洞察加载中..."):l.length===0?null:React.createElement("div",{className:"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8"},l.map(r=>React.createElement("div",{key:r.id,className:"depth-card p-5 rounded-2xl border-l-4 border-l-indigo-500 bg-indigo-50/30"},React.createElement("div",{className:"flex justify-between items-start mb-2"},React.createElement("span",{className:"text-[10px] font-black uppercase text-indigo-500 tracking-wider"},React.createElement("i",{className:"fa-solid fa-brain mr-1"})," 行业共识"),React.createElement("span",{className:"text-[10px] font-bold text-slate-400"},"引证 ",r.evidence_count," 次")),React.createElement("h3",{className:"text-sm font-black text-slate-800 mb-2"},r.trend_key),React.createElement("p",{className:"text-xs text-slate-600 leading-relaxed italic"},'"',r.summary,'"'))))}function StatsChart({news:l}){const d=useRef(null);return useEffect(()=>{if(!d.current||!l.length)return;const n=echarts.init(d.current),i=[...l].sort((o,m)=>(o.timestamp||0)-(m.timestamp||0)),r=[...new Set(l.map(o=>o.business_category||"其他"))];(()=>{const o={};r.forEach(c=>o[c]=0),l.forEach(c=>{const u=c.business_category||"其他";o[u]=(o[u]||0)+1});const m=Object.entries(o).sort((c,u)=>c[1]-u[1]);n.setOption({animationDuration:2e3,backgroundColor:"transparent",grid:{left:"15%",right:"10%",top:"5%",bottom:"5%"},xAxis:{type:"value",splitLine:{show:!1}},yAxis:{type:"category",data:m.map(([c])=>c),axisLabel:{fontWeight:"bold"},inverse:!1},series:[{type:"bar",data:m.map(([,c])=>c),realtimeSort:!0,seriesLayoutBy:"column",itemStyle:{color:function(c){const u=["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6"];return u[c.dataIndex%u.length]},borderRadius:[0,4,4,0]},label:{show:!0,position:"right",valueAnimation:!0}}]})})();const s=new ResizeObserver(()=>n.resize());return s.observe(d.current),()=>{n.dispose(),s.disconnect()}},[l]),React.createElement("div",{ref:d,style:{height:"400px",width:"100%"}})}function TrendChart({days:l=7}){const d=useRef(null),[n,i]=useState(null),[r,g]=useState(l);return useEffect(()=>{fetch(`/api/trend?days=${r}`).then(s=>s.json()).then(s=>{s.success&&i(s.data)}).catch(s=>console.error("[Trend]",s))},[r]),useEffect(()=>{if(!d.current||!n||!n.length)return;const s=echarts.init(d.current),o={};n.forEach(p=>{const b=p.category||"其他";o[b]||(o[b]={}),o[b][p.date]=(o[b][p.date]||0)+p.count});const m=[...new Set(n.map(p=>p.date))].sort(),c=Object.entries(o).map(([p,b])=>({cat:p,total:Object.values(b).reduce((S,C)=>S+C,0)})).sort((p,b)=>b.total-p.total).slice(0,6),u=["#3b82f6","#ef4444","#10b981","#f59e0b","#8b5cf6","#ec4899"],N=c.map(({cat:p},b)=>({name:p,type:"line",smooth:!0,symbol:"circle",symbolSize:6,data:m.map(S=>o[p]?.[S]||0),lineStyle:{width:2.5},itemStyle:{color:u[b%u.length]}}));s.setOption({backgroundColor:"transparent",tooltip:{trigger:"axis"},legend:{data:c.map(p=>p.cat),bottom:0,textStyle:{fontSize:11}},grid:{left:"5%",right:"5%",top:"8%",bottom:"18%",containLabel:!0},xAxis:{type:"category",data:m,boundaryGap:!1,axisLabel:{fontSize:11,color:"#64748b",formatter:p=>p.slice(5)}},yAxis:{type:"value",splitLine:{lineStyle:{color:"#f1f5f9"}}},series:N});const x=new ResizeObserver(()=>s.resize());return x.observe(d.current),()=>{s.dispose(),x.disconnect()}},[n]),React.createElement("div",null,React.createElement("div",{className:"flex gap-2 mb-4"},[7,14,30].map(s=>React.createElement("button",{key:s,onClick:()=>g(s),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${r===s?"bg-blue-500 text-white":"bg-slate-100 text-slate-500 hover:bg-slate-200"}`},s,"天"))),React.createElement("div",{ref:d,style:{height:"360px",width:"100%"}}))}function CompetitorRadar({news:l}){const d=useMemo(()=>{const i={},g=Date.now()-168*3600*1e3;return l.forEach(s=>{const o=s.competitor_category;!o||o==="其他"||(i[o]||(i[o]={items:[],recent:0,total:0}),i[o].items.push(s),i[o].total++,(s.timestamp||0)>=g&&i[o].recent++)}),Object.entries(i).sort((s,o)=>o[1].recent-s[1].recent).map(([s,o])=>({category:s,recent:o.recent,total:o.total,items:o.items.sort((m,c)=>(c.timestamp||0)-(m.timestamp||0)).slice(0,10)}))},[l]),n=i=>i>=20?"bg-red-500 text-white":i>=10?"bg-orange-400 text-white":i>=5?"bg-yellow-300 text-yellow-900":"bg-slate-200 text-slate-600";return React.createElement("div",{className:"space-y-6"},React.createElement("div",{className:"grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"},d.map(i=>React.createElement("div",{key:i.category,className:"depth-card p-4 rounded-xl"},React.createElement("div",{className:"flex items-center justify-between mb-2"},React.createElement("span",{className:"text-sm font-bold text-slate-700"},i.category),React.createElement("span",{className:`text-xs font-bold px-2 py-0.5 rounded-full ${n(i.recent)}`},i.recent)),React.createElement("p",{className:"text-[10px] text-slate-400"},"近7天 ",i.recent," 条 / 总计 ",i.total," 条")))),d.map(i=>React.createElement("div",{key:i.category,className:"depth-card p-6 rounded-2xl"},React.createElement("div",{className:"flex items-center justify-between mb-4"},React.createElement("h3",{className:"text-base font-bold text-slate-800"},React.createElement("i",{className:"fa-solid fa-crosshairs text-red-400 mr-2 text-sm"}),i.category),React.createElement("span",{className:"text-xs text-slate-400 font-medium"},"近7天 ",i.recent," 条动态")),React.createElement("div",{className:"space-y-3"},i.items.map(r=>React.createElement("a",{key:r.id,href:r.url,target:"_blank",rel:"noopener noreferrer",className:"block p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group"},React.createElement("div",{className:"flex items-start gap-2"},React.createElement("div",{className:"flex-1"},React.createElement("h4",{className:"text-sm font-medium text-slate-700 group-hover:text-blue-600 line-clamp-1"},r.title),r.detail&&React.createElement("p",{className:"text-xs text-slate-400 mt-1 line-clamp-1"},r.detail)),React.createElement("div",{className:"flex items-center gap-2 shrink-0"},r.alpha_score>0&&React.createElement(ScoreBadge,{score:r.alpha_score}),React.createElement("span",{className:"text-[10px] text-slate-400"},r.source)))))))),d.length===0&&React.createElement("div",{className:"text-center py-24 text-slate-300 italic font-medium"},"暂无竞对数据（需要 competitor_category 字段）"))}function SourceHealthPanel(){const[l,d]=useState([]);return useEffect(()=>{fetch("/api/source-health").then(n=>n.json()).then(n=>{n.success&&d(n.data)}).catch(()=>{})},[]),l.length?React.createElement("div",{className:"depth-card p-4 rounded-xl mb-6"},React.createElement("h3",{className:"text-[10px] font-black text-slate-400 uppercase tracking-[.15em] mb-3"},React.createElement("i",{className:"fa-solid fa-signal mr-1"}),"数据源状态"),React.createElement("div",{className:"grid grid-cols-2 gap-1.5"},l.slice(0,12).map(n=>React.createElement("div",{key:n.source,className:"flex items-center justify-between text-[10px] px-2 py-1 rounded-md bg-slate-50"},React.createElement("span",{className:"text-slate-600 font-medium truncate max-w-[80px]"},n.source),React.createElement("div",{className:"flex items-center gap-1"},React.createElement("span",{className:`w-1.5 h-1.5 rounded-full ${n.status==="healthy"?"bg-emerald-500":"bg-red-500 animate-pulse"}`}),React.createElement("span",{className:`font-bold ${n.status==="healthy"?"text-emerald-500":"text-red-500"}`},n.hours_since_update,"h")))))):null}function App(){const[l,d]=useState([]),[n,i]=useState([]),[r,g]=useState(!0),[s,o]=useState("All"),[m,c]=useState(""),[u,N]=useState(""),[x,p]=useState("month"),[b,S]=useState(new Set(JSON.parse(localStorage.getItem("readIds")||"[]"))),[C,P]=useState(new Set(JSON.parse(localStorage.getItem("bookmarks")||"[]"))),[A,L]=useState(localStorage.getItem("syncCode")||""),[H,X]=useState(""),[ee,R]=useState(!1),[K,G]=useState(300),[v,I]=useState("feed"),[J,M]=useState(!1),[D,te]=useState(null),[_,ae]=useState(null),[j,U]=useState(-1),[se,F]=useState(!1),[z,le]=useDarkMode(),W=useRef(null),ne=useRef(null),$=useMemo(()=>{const t={All:l.length,Important:l.filter(e=>e.is_important===1).length};return l.forEach(e=>{t[e.source]=(t[e.source]||0)+1}),t},[l]),T=useMemo(()=>{const t=Date.now();return x==="today"?t-864e5:x==="week"?t-7*864e5:x==="month"?t-30*864e5:0},[x]),h=useMemo(()=>{let t=n;if(T>0&&(t=t.filter(e=>(e.timestamp||0)>=T)),m){const e=m.toLowerCase();t=t.filter(a=>(a.title||"").toLowerCase().includes(e)||(a.detail||"").toLowerCase().includes(e)||(a.business_category||"").toLowerCase().includes(e))}return t},[n,m,T]);useEffect(()=>{const t=new URLSearchParams(window.location.search),e=t.get("q"),a=t.get("deep_ask")==="true";e&&a&&(c(e),N(e),console.log("[DeepAsk] Auto-searching for:",e))},[]);const E=useCallback(async t=>{const e=t||s;g(!0);try{const a=e==="Important"?"important=1":`source=${e}`,[f,y]=await Promise.all([fetch(`/api/news?${a}&limit=500`),fetch("/api/news?source=All&limit=500")]),[w,k]=await Promise.all([f.json(),y.json()]);i(w.data||[]),d(k.data||[]),ae(Date.now()),G(300)}catch(a){console.error("[fetch]",a)}finally{g(!1)}},[s]),oe=useCallback(async()=>{try{const e=await(await fetch("/api/health")).json();te(e)}catch{}},[]);useEffect(()=>{E(s),oe()},[s]),useEffect(()=>{const t=setInterval(()=>{G(e=>e<=1?(E(s),300):e-1)},1e3);return()=>clearInterval(t)},[s,E]),useEffect(()=>{const t=e=>{if((e.ctrlKey||e.metaKey)&&e.key==="k"){e.preventDefault(),W.current?.focus();return}const a=document.activeElement?.tagName;if(!(a==="INPUT"||a==="TEXTAREA"))if(e.key==="j"||e.key==="J")e.preventDefault(),U(f=>Math.min(f+1,h.length-1));else if(e.key==="k"||e.key==="K")e.preventDefault(),U(f=>Math.max(f-1,0));else if(e.key==="s"||e.key==="S"){if(j>=0&&j<h.length){e.preventDefault();const f=h[j];V({stopPropagation:()=>{}},f.id)}}else(e.key==="r"||e.key==="R")&&(e.preventDefault(),E(s))};return window.addEventListener("keydown",t),()=>window.removeEventListener("keydown",t)},[j,h,s,E]);const re=async()=>{const t=Math.random().toString(36).substring(2,8).toUpperCase();L(t),localStorage.setItem("syncCode",t),R(!0);try{await fetch("/api/sync/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sync_code:t,read_ids:[...b],bookmarks:[...C]})})}catch(e){console.error("Sync code generation failed",e)}finally{R(!1)}},ie=async()=>{const t=H.trim().toUpperCase();if(!(!t||t.length!==6)){R(!0);try{const a=await(await fetch(`/api/sync/load?code=${t}`)).json();if(a.success&&a.data){const f=a.data,y=new Set(f.read_ids||[]),w=new Set(f.bookmarks||[]);S(y),P(w),localStorage.setItem("readIds",JSON.stringify([...y])),localStorage.setItem("bookmarks",JSON.stringify([...w])),L(t),localStorage.setItem("syncCode",t),alert("同步成功！已恢复云端书签与已读历史。")}else alert("找不到该同步码，请检查是否输入正确。")}catch(e){console.error("Load sync code failed",e),alert("同步失败，请稍后重试。")}finally{R(!1)}}},q=useCallback(async(t,e)=>{if(A)try{await fetch("/api/sync/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sync_code:A,read_ids:[...t],bookmarks:[...e]})})}catch(a){console.error("Auto sync failed",a)}},[A]),ce=t=>{if(b.has(t))return;const e=new Set(b);e.add(t),S(e),localStorage.setItem("readIds",JSON.stringify([...e])),q(e,C)},V=(t,e)=>{t.stopPropagation();const a=new Set(C);a.has(e)?a.delete(e):a.add(e),P(a),localStorage.setItem("bookmarks",JSON.stringify([...a])),q(b,a)},de=t=>{t.key==="Enter"&&c(u.trim())},Q=()=>{c(""),N("")},fe=t=>{if(!t)return"—";const e=Date.now()-t;if(e<6e4)return"刚才";const a=Math.floor(e/6e4);if(a<60)return`${a}分钟前`;const f=Math.floor(a/60);return f<24?`${f}小时前`:new Date(t).toLocaleDateString("zh-CN")},[Y,Z]=useState("");useEffect(()=>{if(!_)return;const t=()=>{const a=Date.now()-_;if(a<6e4)Z("刚刚更新");else{const f=Math.floor(a/6e4);Z(`${f} 分钟前更新`)}};t();const e=setInterval(t,1e4);return()=>clearInterval(e)},[_]);const me=()=>React.createElement("div",{className:"depth-card p-5 rounded-2xl mb-4"},React.createElement("div",{className:"flex gap-2 mb-3"},React.createElement("div",{className:"skeleton w-16 h-4"}),React.createElement("div",{className:"skeleton w-24 h-4"})),React.createElement("div",{className:"skeleton w-full h-6 mb-2"}),React.createElement("div",{className:"skeleton w-3/4 h-6"})),pe=React.createElement("nav",{className:"flex flex-col gap-1 flex-1 overflow-y-auto scrollbar-hide pr-2"},NAV_GROUPS.map(t=>React.createElement("div",{key:t,className:"mb-4"},React.createElement("h3",{className:"text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-2"},t==="CORE"?"概览":t),SOURCES.filter(e=>e.group===t).map(e=>React.createElement("button",{key:e.id,onClick:()=>{o(e.id),M(!1)},className:`w-full flex items-center justify-between px-4 py-2 rounded-xl transition-all group ${s===e.id?"nav-active":"text-slate-500 hover:bg-slate-50"}`},React.createElement("div",{className:"flex items-center gap-3"},React.createElement("i",{className:`fa-solid ${e.icon} w-4 text-center text-xs opacity-70 group-hover:opacity-100`}),React.createElement("span",{className:"text-[13px]"},e.label)),$[e.id]>0&&React.createElement("span",{className:"text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full text-slate-400"},$[e.id]))))));return React.createElement("div",{className:"flex h-screen overflow-hidden bg-[#fcfcfd]"},J&&React.createElement("div",{className:"fixed inset-0 bg-black/30 z-20 md:hidden",onClick:()=>M(!1)}),React.createElement("aside",{className:`
+
+// Fallback build - CDN dependencies required
+const { useState, useEffect, useCallback, useRef, useMemo } = React;
+
+  // ── Dark Mode Hook ─────────────────────────────────────────────────────────
+  function useDarkMode() {
+    const [dark, setDark] = useState(() => {
+      const saved = localStorage.getItem('darkMode');
+      if (saved !== null) return saved === 'true';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    });
+    useEffect(() => {
+      document.documentElement.classList.toggle('dark', dark);
+      localStorage.setItem('darkMode', dark);
+    }, [dark]);
+    return [dark, setDark];
+  }
+
+  // ── Export Modal Component ────────────────────────────────────────────────
+  function ExportModal({ news, onClose }) {
+    const [format, setFormat] = useState('csv');
+    const [days, setDays] = useState(7);
+    const [exporting, setExporting] = useState(false);
+
+    const handleExport = async () => {
+      setExporting(true);
+      try {
+        if (format === 'csv') {
+          window.open(`/api/export?format=csv&days=${days}`, '_blank');
+        } else if (format === 'json') {
+          const res = await fetch(`/api/export?format=json&days=${days}`);
+          const data = await res.json();
+          const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `alpha-radar-${days}d.json`; a.click();
+          URL.revokeObjectURL(url);
+        } else if (format === 'clipboard') {
+          const since = Date.now() - days * 86400000;
+          const filtered = news.filter(n => (n.timestamp || 0) >= since);
+          const text = filtered.map(n =>
+            `[${n.source}] ${n.title}${n.detail ? ' - ' + n.detail : ''} (${n.business_category || ''})`
+          ).join('\n');
+          await navigator.clipboard.writeText(text);
+          alert('已复制到剪贴板');
+        }
+        onClose();
+      } catch (err) {
+        console.error('Export error:', err);
+        alert('导出失败: ' + err.message);
+      } finally {
+        setExporting(false);
+      }
+    };
+
+    return (
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-content" onClick={e => e.stopPropagation()}>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-black">导出数据</h2>
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><i className="fa-solid fa-xmark"/></button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">导出格式</label>
+              <div className="flex gap-2">
+                {[['csv','CSV'], ['json','JSON'], ['clipboard','剪贴板']].map(([val, lbl]) => (
+                  <button key={val} onClick={() => setFormat(val)}
+                    className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                      format === val ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}>{lbl}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 block">时间范围</label>
+              <div className="flex gap-2">
+                {[1, 7, 14, 30, 90].map(d => (
+                  <button key={d} onClick={() => setDays(d)}
+                    className={`px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                      days === d ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}>{d}天</button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={handleExport} disabled={exporting}
+              className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-50">
+              {exporting ? '导出中...' : '导出'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Monitoring Panel Component ──────────────────────────────────────────────
+  function MonitoringPanel() {
+    const [data, setData] = useState(null);
+    const [quality, setQuality] = useState(null);
+    const [cacheStats, setCacheStats] = useState(null);
+
+    useEffect(() => {
+      Promise.all([
+        fetch('/api/monitoring').then(r => r.json()).catch(() => null),
+        fetch('/api/quality').then(r => r.json()).catch(() => null),
+        fetch('/api/cache-status').then(r => r.json()).catch(() => null),
+      ]).then(([mon, qual, cache]) => {
+        if (mon?.success) setData(mon.data);
+        if (qual?.success) setQuality(qual.data);
+        if (cache?.success) setCacheStats(cache.data);
+      });
+    }, []);
+
+    return (
+      <div className="p-6 md:p-10 space-y-6">
+        <header className="mb-4">
+          <h2 className="text-2xl font-black tracking-tight">
+            <i className="fa-solid fa-heart-pulse text-red-400 mr-2"></i>
+            系统监控
+          </h2>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* AI Provider Status */}
+          <div className="depth-card p-6 rounded-2xl">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">
+              <i className="fa-solid fa-brain mr-1"></i> AI 状态
+            </h3>
+            {data?.ai ? (
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">当前提供商</span>
+                  <span className="text-sm font-bold">{data.ai.current}</span>
+                </div>
+                {data.ai.degradedAt && (
+                  <div className="text-xs text-amber-500 font-medium">
+                    <i className="fa-solid fa-triangle-exclamation mr-1"></i>
+                    已降级 {Math.floor((Date.now() - data.ai.degradedAt) / 3600000)}h
+                  </div>
+                )}
+                <div className="text-xs text-slate-400">
+                  降级历史: {data.ai.history?.length || 0} 次
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">数据加载中...</p>
+            )}
+          </div>
+
+          {/* Data Quality */}
+          <div className="depth-card p-6 rounded-2xl">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">
+              <i className="fa-solid fa-shield-check mr-1"></i> 数据质量
+            </h3>
+            {quality ? (
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">已验证</span>
+                  <span className="text-sm font-bold">{quality.total}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">通过率</span>
+                  <span className="text-sm font-bold text-emerald-500">
+                    {quality.total > 0 ? ((quality.passed / quality.total) * 100).toFixed(0) : 0}%
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">失败</span>
+                  <span className="text-sm font-bold text-red-500">{quality.failed}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">暂无数据</p>
+            )}
+          </div>
+
+          {/* Cache Stats */}
+          <div className="depth-card p-6 rounded-2xl">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">
+              <i className="fa-solid fa-database mr-1"></i> 查询缓存
+            </h3>
+            {cacheStats ? (
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm">命中率</span>
+                  <span className="text-sm font-bold text-blue-500">{cacheStats.hitRate}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">缓存条目</span>
+                  <span className="text-sm font-bold">{cacheStats.size} / {cacheStats.maxEntries}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">暂无数据</p>
+            )}
+          </div>
+        </div>
+
+        {/* Scraper Status Table */}
+        {data?.scrapers && Object.keys(data.scrapers).length > 0 && (
+          <div className="depth-card p-6 rounded-2xl">
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-400 mb-4">
+              <i className="fa-solid fa-spider mr-1"></i> 爬虫状态
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100">
+                    <th className="text-left py-2 pr-4">数据源</th>
+                    <th className="text-right py-2 px-3">成功率</th>
+                    <th className="text-right py-2 px-3">总条目</th>
+                    <th className="text-right py-2 px-3">连续失败</th>
+                    <th className="text-right py-2 pl-3">最后错误</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(data.scrapers).map(([source, s]) => (
+                    <tr key={source} className="border-b border-slate-50">
+                      <td className="py-2 pr-4 font-medium">{source}</td>
+                      <td className="text-right py-2 px-3">
+                        <span className={`font-bold ${parseFloat(s.successRate) >= 80 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {s.successRate}
+                        </span>
+                      </td>
+                      <td className="text-right py-2 px-3">{s.totalItems}</td>
+                      <td className="text-right py-2 px-3">
+                        {s.consecutive > 0 && <span className="text-red-500 font-bold">{s.consecutive}</span>}
+                        {s.consecutive === 0 && <span className="text-slate-300">0</span>}
+                      </td>
+                      <td className="text-right py-2 pl-3 text-xs text-slate-400 max-w-[200px] truncate">
+                        {s.lastError || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Errors */}
+        {data?.recentErrors?.length > 0 && (
+          <div className="depth-card p-6 rounded-2xl">
+            <h3 className="text-xs font-black uppercase tracking-wider text-red-400 mb-4">
+              <i className="fa-solid fa-circle-exclamation mr-1"></i> 近期错误
+            </h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-hide">
+              {data.recentErrors.map((err, i) => (
+                <div key={i} className="text-xs p-3 bg-red-50 dark:bg-red-950 rounded-xl border border-red-100 dark:border-red-900">
+                  <span className="font-bold text-red-600 mr-2">[{err.category}]</span>
+                  <span className="text-red-500">{err.message}</span>
+                  <span className="text-slate-400 ml-2">{new Date(err.ts).toLocaleTimeString('zh-CN')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 配置 ────────────────────────────────────────────────────────────────────
+  // 所有数据通过 /api/* 服务端代理获取，无需前端直连 Supabase
+  // 云端同步（书签/已读）通过 /api/sync 接口实现
+  const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  // 云端同步通过 API 代理，不再需要前端 Supabase 客户端
+  let sbClient = null;
+
+  const SOURCE_GROUPS = {
+    EXCHANGE: ['Binance','OKX','Bybit','Gate','MEXC','Bitget','HTX','KuCoin'],
+    MARKET:   ['Poly-Breaking','Poly-China'],
+    SOCIAL:   ['WuShuo','Phyrex','JustinSun','XieJiayin','TwitterAB'],
+    MEDIA:    ['BlockBeats','TechFlow','PRNewswire','HashKeyGroup','WuBlock','OSL','HashKeyExchange','Exio','TechubNews'],
+  };
+
+  const SOURCES = [
+    { id:'All',            label:'全部动态',       icon:'fa-layer-group', group:'CORE' },
+    { id:'Important',      label:'重要信号',        icon:'fa-bolt',        group:'CORE' },
+    { id:'Binance',        label:'Binance',         icon:'fa-b',           group:'EXCHANGE' },
+    { id:'OKX',            label:'OKX',             icon:'fa-circle-dot',  group:'EXCHANGE' },
+    { id:'Bybit',          label:'Bybit',           icon:'fa-circle',      group:'EXCHANGE' },
+    { id:'Gate',           label:'Gate.io',         icon:'fa-g',           group:'EXCHANGE' },
+    { id:'MEXC',           label:'MEXC',            icon:'fa-m',           group:'EXCHANGE' },
+    { id:'Bitget',         label:'Bitget',          icon:'fa-coins',       group:'EXCHANGE' },
+    { id:'HTX',            label:'HTX',             icon:'fa-h',           group:'EXCHANGE' },
+    { id:'KuCoin',         label:'KuCoin',          icon:'fa-k',           group:'EXCHANGE' },
+    { id:'Poly-Breaking',  label:'Poly 突发',       icon:'fa-chart-line',  group:'MARKET' },
+    { id:'Poly-China',     label:'Poly 中国',       icon:'fa-flag',        group:'MARKET' },
+    { id:'WuShuo',         label:'吴说',            icon:'fa-brands fa-x-twitter', group:'SOCIAL' },
+    { id:'Phyrex',         label:'Phyrex',          icon:'fa-brands fa-x-twitter', group:'SOCIAL' },
+    { id:'JustinSun',      label:'Justin Sun',      icon:'fa-brands fa-x-twitter', group:'SOCIAL' },
+    { id:'XieJiayin',      label:'XieJiayin',       icon:'fa-brands fa-x-twitter', group:'SOCIAL' },
+    { id:'TwitterAB',      label:'Twitter AB',      icon:'fa-brands fa-x-twitter', group:'SOCIAL' },
+    { id:'BlockBeats',     label:'BlockBeats',      icon:'fa-newspaper',   group:'MEDIA' },
+    { id:'TechFlow',       label:'TechFlow',        icon:'fa-newspaper',   group:'MEDIA' },
+    { id:'PRNewswire',     label:'PR Newswire',     icon:'fa-newspaper',   group:'MEDIA' },
+    { id:'HashKeyGroup',   label:'HashKey Group',   icon:'fa-building',    group:'MEDIA' },
+    { id:'WuBlock',        label:'WuBlock',         icon:'fa-newspaper',   group:'MEDIA' },
+    { id:'OSL',            label:'OSL',             icon:'fa-building',    group:'MEDIA' },
+    { id:'HashKeyExchange',label:'HashKey Exchange',icon:'fa-building',    group:'MEDIA' },
+    { id:'Exio',           label:'EX.IO',           icon:'fa-building',    group:'MEDIA' },
+    { id:'TechubNews',     label:'Techub News',     icon:'fa-newspaper',   group:'MEDIA' },
+  ];
+  const NAV_GROUPS = ['CORE','EXCHANGE','MARKET','SOCIAL','MEDIA'];
+
+  function getSourceStyle(src) {
+    if (SOURCE_GROUPS.EXCHANGE.includes(src)) return 'bg-slate-800 text-white';
+    if (SOURCE_GROUPS.MARKET.includes(src))   return 'bg-purple-600 text-white';
+    if (SOURCE_GROUPS.SOCIAL.includes(src))   return 'bg-sky-500 text-white';
+    return 'bg-slate-200 text-slate-700';
+  }
+
+  // ── Alpha Score 徽章 ──────────────────────────────────────────────────────
+  function ScoreBadge({ score }) {
+    if (!score && score !== 0) return null;
+    let cls, icon;
+    if (score >= 90) {
+      cls = 'score-critical';
+      icon = '\uD83D\uDD25'; // fire
+    } else if (score >= 70) {
+      cls = 'score-high';
+      icon = '\u2B50'; // star
+    } else {
+      cls = 'score-medium';
+      icon = '\uD83D\uDCE1'; // satellite
+    }
+    return (
+      <span className={`text-[11px] px-2 py-0.5 rounded-md font-mono ${cls}`}>
+        {icon} {score}
+      </span>
+    );
+  }
+
+  // ── 搜索高亮辅助 ───────────────────────────────────────────────────────────
+  function highlight(text, q) {
+    if (!q || !text) return text;
+    const parts = text.split(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'));
+    return parts.map((p, i) => p.toLowerCase() === q.toLowerCase()
+      ? <mark key={i}>{p}</mark>
+      : p
+    );
+  }
+
+  // ── 行业记忆 (Insights) 组件 ──────────────────────────────────────────
+  function InsightsPanel() {
+    const [insights, setInsights] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+      fetch('/api/insights')
+        .then(r => r.json())
+        .then(d => { if (d.success) setInsights(d.data); })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, []);
+
+    if (loading) return <div className="p-8 text-center text-slate-400">洞察加载中...</div>;
+    if (insights.length === 0) return null;
+
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {insights.map(i => (
+          <div key={i.id} className="depth-card p-5 rounded-2xl border-l-4 border-l-indigo-500 bg-indigo-50/30">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+                <i className="fa-solid fa-brain mr-1"></i> 行业共识
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">引证 {i.evidence_count} 次</span>
+            </div>
+            <h3 className="text-sm font-black text-slate-800 mb-2">{i.trend_key}</h3>
+            <p className="text-xs text-slate-600 leading-relaxed italic">"{i.summary}"</p>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // ── 动态竞速图组件 ─────────────────────────────────────────────────────────
+  function StatsChart({ news }) {
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+      if (!containerRef.current || !news.length) return;
+      const chart = echarts.init(containerRef.current);
+
+      // 准备动态增长数据（按时间排序后累加）
+      const sortedNews = [...news].sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      const categories = [...new Set(news.map(n => n.business_category || '其他'))];
+      
+      const updateData = () => {
+        const catMap = {};
+        categories.forEach(c => catMap[c] = 0);
+        
+        // 此处仅展示静态汇总，但增加了入场动画
+        news.forEach(n => { const c = n.business_category || '其他'; catMap[c] = (catMap[c] || 0) + 1; });
+        const sorted = Object.entries(catMap).sort((a,b) => a[1]-b[1]);
+
+        chart.setOption({
+          animationDuration: 2000,
+          backgroundColor: 'transparent',
+          grid: { left: '15%', right: '10%', top: '5%', bottom: '5%' },
+          xAxis: { type: 'value', splitLine: { show: false } },
+          yAxis: { 
+            type: 'category', 
+            data: sorted.map(([c]) => c),
+            axisLabel: { fontWeight: 'bold' },
+            inverse: false
+          },
+          series: [{
+            type: 'bar',
+            data: sorted.map(([,n]) => n),
+            realtimeSort: true,
+            seriesLayoutBy: 'column',
+            itemStyle: {
+              color: function(param) {
+                const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+                return colors[param.dataIndex % colors.length];
+              },
+              borderRadius: [0, 4, 4, 0]
+            },
+            label: { show: true, position: 'right', valueAnimation: true }
+          }]
+        });
+      };
+
+      updateData();
+      const ro = new ResizeObserver(() => chart.resize());
+      ro.observe(containerRef.current);
+      return () => { chart.dispose(); ro.disconnect(); };
+    }, [news]);
+
+    return <div ref={containerRef} style={{ height:'400px', width:'100%' }} />;
+  }
+
+  // ── 趋势折线图组件 ─────────────────────────────────────────────────────────
+  function TrendChart({ days = 7 }) {
+    const containerRef = useRef(null);
+    const [trendData, setTrendData] = useState(null);
+    const [trendDays, setTrendDays] = useState(days);
+
+    useEffect(() => {
+      fetch(`/api/trend?days=${trendDays}`)
+        .then(r => r.json())
+        .then(d => { if (d.success) setTrendData(d.data); })
+        .catch(e => console.error('[Trend]', e));
+    }, [trendDays]);
+
+    useEffect(() => {
+      if (!containerRef.current || !trendData || !trendData.length) return;
+      const chart = echarts.init(containerRef.current);
+
+      // Group by category, build series
+      const catMap = {};
+      trendData.forEach(r => {
+        const cat = r.category || '其他';
+        if (!catMap[cat]) catMap[cat] = {};
+        catMap[cat][r.date] = (catMap[cat][r.date] || 0) + r.count;
+      });
+
+      // Unique sorted dates
+      const dates = [...new Set(trendData.map(r => r.date))].sort();
+      // Top 6 categories by total count
+      const catTotals = Object.entries(catMap).map(([cat, dateMap]) => ({
+        cat, total: Object.values(dateMap).reduce((a, b) => a + b, 0)
+      })).sort((a, b) => b.total - a.total).slice(0, 6);
+
+      const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+      const series = catTotals.map(({ cat }, i) => ({
+        name: cat,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        data: dates.map(d => catMap[cat]?.[d] || 0),
+        lineStyle: { width: 2.5 },
+        itemStyle: { color: colors[i % colors.length] },
+      }));
+
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'axis' },
+        legend: { data: catTotals.map(c => c.cat), bottom: 0, textStyle: { fontSize: 11 } },
+        grid: { left: '5%', right: '5%', top: '8%', bottom: '18%', containLabel: true },
+        xAxis: {
+          type: 'category', data: dates, boundaryGap: false,
+          axisLabel: { fontSize: 11, color: '#64748b', formatter: v => v.slice(5) },
+        },
+        yAxis: { type: 'value', splitLine: { lineStyle: { color: '#f1f5f9' } } },
+        series,
+      });
+
+      const ro = new ResizeObserver(() => chart.resize());
+      ro.observe(containerRef.current);
+      return () => { chart.dispose(); ro.disconnect(); };
+    }, [trendData]);
+
+    return (
+      <div>
+        <div className="flex gap-2 mb-4">
+          {[7, 14, 30].map(d => (
+            <button key={d} onClick={() => setTrendDays(d)}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                trendDays === d ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}>
+              {d}天
+            </button>
+          ))}
+        </div>
+        <div ref={containerRef} style={{ height: '360px', width: '100%' }} />
+      </div>
+    );
+  }
+
+  // ── 竞对雷达组件 ───────────────────────────────────────────────────────────
+  function CompetitorRadar({ news }) {
+    // Group by competitor_category
+    const grouped = useMemo(() => {
+      const map = {};
+      const now = Date.now();
+      const weekAgo = now - 7 * 24 * 3600 * 1000;
+
+      news.forEach(n => {
+        const cat = n.competitor_category;
+        if (!cat || cat === '其他') return;
+        if (!map[cat]) map[cat] = { items: [], recent: 0, total: 0 };
+        map[cat].items.push(n);
+        map[cat].total++;
+        if ((n.timestamp || 0) >= weekAgo) map[cat].recent++;
+      });
+
+      return Object.entries(map)
+        .sort((a, b) => b[1].recent - a[1].recent)
+        .map(([cat, data]) => ({
+          category: cat,
+          recent: data.recent,
+          total: data.total,
+          items: data.items
+            .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+            .slice(0, 10),
+        }));
+    }, [news]);
+
+    const heatColor = (count) => {
+      if (count >= 20) return 'bg-red-500 text-white';
+      if (count >= 10) return 'bg-orange-400 text-white';
+      if (count >= 5)  return 'bg-yellow-300 text-yellow-900';
+      return 'bg-slate-200 text-slate-600';
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* 热力图概览 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          {grouped.map(g => (
+            <div key={g.category} className="depth-card p-4 rounded-xl">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-slate-700">{g.category}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${heatColor(g.recent)}`}>
+                  {g.recent}
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">近7天 {g.recent} 条 / 总计 {g.total} 条</p>
+            </div>
+          ))}
+        </div>
+
+        {/* 各竞对详情 */}
+        {grouped.map(g => (
+          <div key={g.category} className="depth-card p-6 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-800">
+                <i className="fa-solid fa-crosshairs text-red-400 mr-2 text-sm"></i>
+                {g.category}
+              </h3>
+              <span className="text-xs text-slate-400 font-medium">近7天 {g.recent} 条动态</span>
+            </div>
+            <div className="space-y-3">
+              {g.items.map(item => (
+                <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer"
+                  className="block p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-slate-700 group-hover:text-blue-600 line-clamp-1">
+                        {item.title}
+                      </h4>
+                      {item.detail && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-1">{item.detail}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {item.alpha_score > 0 && <ScoreBadge score={item.alpha_score} />}
+                      <span className="text-[10px] text-slate-400">{item.source}</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {grouped.length === 0 && (
+          <div className="text-center py-24 text-slate-300 italic font-medium">
+            暂无竞对数据（需要 competitor_category 字段）
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 数据源健康看板组件 ─────────────────────────────────────────────────────
+  function SourceHealthPanel() {
+    const [healthData, setHealthData] = useState([]);
+    useEffect(() => {
+      fetch('/api/source-health')
+        .then(r => r.json())
+        .then(d => { if (d.success) setHealthData(d.data); })
+        .catch(() => {});
+    }, []);
+
+    if (!healthData.length) return null;
+
+    return (
+      <div className="depth-card p-4 rounded-xl mb-6">
+        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[.15em] mb-3">
+          <i className="fa-solid fa-signal mr-1"></i>数据源状态
+        </h3>
+        <div className="grid grid-cols-2 gap-1.5">
+          {healthData.slice(0, 12).map(s => (
+            <div key={s.source} className="flex items-center justify-between text-[10px] px-2 py-1 rounded-md bg-slate-50">
+              <span className="text-slate-600 font-medium truncate max-w-[80px]">{s.source}</span>
+              <div className="flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${s.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500 animate-pulse'}`}></span>
+                <span className={`font-bold ${s.status === 'healthy' ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {s.hours_since_update}h
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 主应用 ─────────────────────────────────────────────────────────────────
+  function App() {
+    const [allNews, setAllNews]         = useState([]);
+    const [displayNews, setDisplayNews] = useState([]);
+    const [loading, setLoading]         = useState(true);
+    const [activeFilter, setActiveFilter] = useState('All');
+    const [search, setSearch]           = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [timeRange, setTimeRange]     = useState('month'); // today|week|month|all
+    const [readIds, setReadIds]         = useState(new Set(JSON.parse(localStorage.getItem('readIds')||'[]')));
+    const [bookmarks, setBookmarks]     = useState(new Set(JSON.parse(localStorage.getItem('bookmarks')||'[]')));
+    const [syncCode, setSyncCode]       = useState(localStorage.getItem('syncCode') || '');
+    const [syncInput, setSyncInput]     = useState('');
+    const [isSyncing, setIsSyncing]     = useState(false);
+    const [countdown, setCountdown]     = useState(300);
+    const [viewMode, setViewMode]       = useState('feed'); // feed|chart|competitor|trend|monitor
+    const [menuOpen, setMenuOpen]       = useState(false);
+    const [health, setHealth]           = useState(null);
+    const [lastUpdateTime, setLastUpdateTime] = useState(null);
+    const [focusIdx, setFocusIdx]       = useState(-1);
+    const [showExport, setShowExport]   = useState(false);
+    const [dark, setDark]               = useDarkMode();
+    const searchInputRef                = useRef(null);
+    const feedContainerRef              = useRef(null);
+
+    // 实时计数
+    const counts = useMemo(() => {
+      const c = { All: allNews.length, Important: allNews.filter(n=>n.is_important===1).length };
+      allNews.forEach(n => { c[n.source] = (c[n.source]||0)+1; });
+      return c;
+    }, [allNews]);
+
+    // 时间范围筛选
+    const timeFilterTs = useMemo(() => {
+      const now = Date.now();
+      if (timeRange === 'today') return now - 86400000;
+      if (timeRange === 'week')  return now - 7*86400000;
+      if (timeRange === 'month') return now - 30*86400000;
+      return 0;
+    }, [timeRange]);
+
+    // 客户端搜索过滤
+    const filteredNews = useMemo(() => {
+      let items = displayNews;
+      if (timeFilterTs > 0) items = items.filter(n => (n.timestamp||0) >= timeFilterTs);
+      if (search) {
+        const q = search.toLowerCase();
+        items = items.filter(n =>
+          (n.title||'').toLowerCase().includes(q) ||
+          (n.detail||'').toLowerCase().includes(q) ||
+          (n.business_category||'').toLowerCase().includes(q)
+        );
+      }
+      return items;
+    }, [displayNews, search, timeFilterTs]);
+
+    useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const query = params.get('q');
+      const isDeepAsk = params.get('deep_ask') === 'true';
+      
+      if (query && isDeepAsk) {
+        setSearch(query);
+        setSearchInput(query);
+        // 自动聚焦到对应的条目或显示 AI 对话引导
+        console.log('[DeepAsk] Auto-searching for:', query);
+      }
+    }, []);
+
+    // ── 数据拉取 ──────────────────────────────────────────────────────────────
+    const fetchNews = useCallback(async (source) => {
+      const src = source || activeFilter;
+      setLoading(true);
+      try {
+        const q = src === 'Important' ? 'important=1' : `source=${src}`;
+        const [dispRes, allRes] = await Promise.all([
+          fetch(`/api/news?${q}&limit=500`),
+          fetch('/api/news?source=All&limit=500'),
+        ]);
+        const [dispData, allData] = await Promise.all([dispRes.json(), allRes.json()]);
+        setDisplayNews(dispData.data || []);
+        setAllNews(allData.data || []);
+        setLastUpdateTime(Date.now());
+        setCountdown(300);
+      } catch (err) {
+        console.error('[fetch]', err);
+      } finally { setLoading(false); }
+    }, [activeFilter]);
+
+    // 健康检查
+    const fetchHealth = useCallback(async () => {
+      try {
+        const res = await fetch('/api/health');
+        const d   = await res.json();
+        setHealth(d);
+      } catch (_) {}
+    }, []);
+
+    useEffect(() => { fetchNews(activeFilter); fetchHealth(); }, [activeFilter]);
+
+    // 自动刷新倒计时
+    useEffect(() => {
+      const t = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) { fetchNews(activeFilter); return 300; }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(t);
+    }, [activeFilter, fetchNews]);
+
+    // 键盘快捷键：Ctrl/Cmd+K 聚焦搜索, J/K 上下导航, S 收藏, R 刷新
+    useEffect(() => {
+      const handler = (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          return;
+        }
+        // 不在输入框中时才触发快捷键
+        const tag = document.activeElement?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+        if (e.key === 'j' || e.key === 'J') {
+          e.preventDefault();
+          setFocusIdx(prev => Math.min(prev + 1, filteredNews.length - 1));
+        } else if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault();
+          setFocusIdx(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 's' || e.key === 'S') {
+          if (focusIdx >= 0 && focusIdx < filteredNews.length) {
+            e.preventDefault();
+            const item = filteredNews[focusIdx];
+            toggleBookmark({ stopPropagation: () => {} }, item.id);
+          }
+        } else if (e.key === 'r' || e.key === 'R') {
+          e.preventDefault();
+          fetchNews(activeFilter);
+        }
+      };
+      window.addEventListener('keydown', handler);
+      return () => window.removeEventListener('keydown', handler);
+    }, [focusIdx, filteredNews, activeFilter, fetchNews]);
+
+    // ── 云端同步（极简 6 位码） ──────────────────────────────────────────────────
+    const generateSyncCode = async () => {
+      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+      setSyncCode(code);
+      localStorage.setItem('syncCode', code);
+      setIsSyncing(true);
+      try {
+        await fetch('/api/sync/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sync_code: code, read_ids: [...readIds], bookmarks: [...bookmarks] }),
+        });
+      } catch(e) { console.error('Sync code generation failed', e); }
+      finally { setIsSyncing(false); }
+    };
+
+    const loadFromSync = async () => {
+      const code = syncInput.trim().toUpperCase();
+      if (!code || code.length !== 6) return;
+      setIsSyncing(true);
+      try {
+        const res = await fetch(`/api/sync/load?code=${code}`);
+        const result = await res.json();
+        if (result.success && result.data) {
+          const data = result.data;
+          const loadedReads = new Set(data.read_ids || []);
+          const loadedBookmarks = new Set(data.bookmarks || []);
+          setReadIds(loadedReads);
+          setBookmarks(loadedBookmarks);
+          localStorage.setItem('readIds', JSON.stringify([...loadedReads]));
+          localStorage.setItem('bookmarks', JSON.stringify([...loadedBookmarks]));
+          setSyncCode(code);
+          localStorage.setItem('syncCode', code);
+          alert('同步成功！已恢复云端书签与已读历史。');
+        } else {
+          alert('找不到该同步码，请检查是否输入正确。');
+        }
+      } catch (e) {
+        console.error('Load sync code failed', e);
+        alert('同步失败，请稍后重试。');
+      } finally { setIsSyncing(false); }
+    };
+
+    const syncToCloud = useCallback(async (rIds, bMarks) => {
+      if (!syncCode) return;
+      try {
+        await fetch('/api/sync/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sync_code: syncCode, read_ids: [...rIds], bookmarks: [...bMarks] }),
+        });
+      } catch(e) { console.error('Auto sync failed', e); }
+    }, [syncCode]);
+
+    const markAsRead = (id) => {
+      if (readIds.has(id)) return;
+      const next = new Set(readIds); next.add(id);
+      setReadIds(next);
+      localStorage.setItem('readIds', JSON.stringify([...next]));
+      syncToCloud(next, bookmarks);
+    };
+
+    const toggleBookmark = (e, id) => {
+      e.stopPropagation();
+      const next = new Set(bookmarks);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      setBookmarks(next);
+      localStorage.setItem('bookmarks', JSON.stringify([...next]));
+      syncToCloud(readIds, next);
+    };
+
+    // 搜索与其他工具
+    const handleSearch = (e) => { if (e.key === 'Enter') setSearch(searchInput.trim()); };
+    const clearSearch  = () => { setSearch(''); setSearchInput(''); };
+
+    const formatTime = (ts) => {
+      if (!ts) return '—';
+      const diff = Date.now() - ts;
+      if (diff < 60000)  return '刚才';
+      const min = Math.floor(diff/60000);
+      if (min < 60)      return `${min}分钟前`;
+      const hr = Math.floor(min/60);
+      if (hr < 24)       return `${hr}小时前`;
+      return new Date(ts).toLocaleDateString('zh-CN');
+    };
+
+    // 最后更新时间格式化（动态更新）
+    const [lastUpdateLabel, setLastUpdateLabel] = useState('');
+    useEffect(() => {
+      if (!lastUpdateTime) return;
+      const tick = () => {
+        const diff = Date.now() - lastUpdateTime;
+        if (diff < 60000) setLastUpdateLabel('刚刚更新');
+        else {
+          const min = Math.floor(diff / 60000);
+          setLastUpdateLabel(`${min} 分钟前更新`);
+        }
+      };
+      tick();
+      const t = setInterval(tick, 10000);
+      return () => clearInterval(t);
+    }, [lastUpdateTime]);
+
+    const SkeletonCard = () => (
+      <div className="depth-card p-5 rounded-2xl mb-4">
+        <div className="flex gap-2 mb-3"><div className="skeleton w-16 h-4"/><div className="skeleton w-24 h-4"/></div>
+        <div className="skeleton w-full h-6 mb-2"/><div className="skeleton w-3/4 h-6"/>
+      </div>
+    );
+
+    const sidebarNav = (
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto scrollbar-hide pr-2">
+        {NAV_GROUPS.map(group => (
+          <div key={group} className="mb-4">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 mb-2">
+              {group === 'CORE' ? '概览' : group}
+            </h3>
+            {SOURCES.filter(s => s.group === group).map(src => (
+              <button key={src.id} onClick={() => { setActiveFilter(src.id); setMenuOpen(false); }}
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-xl transition-all group ${
+                  activeFilter === src.id ? 'nav-active' : 'text-slate-500 hover:bg-slate-50'
+                }`}>
+                <div className="flex items-center gap-3">
+                  <i className={`fa-solid ${src.icon} w-4 text-center text-xs opacity-70 group-hover:opacity-100`}/>
+                  <span className="text-[13px]">{src.label}</span>
+                </div>
+                {counts[src.id] > 0 && (
+                  <span className="text-[10px] font-bold bg-slate-100 px-2 py-0.5 rounded-full text-slate-400">
+                    {counts[src.id]}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        ))}
+      </nav>
+    );
+
+    return (
+      <div className="flex h-screen overflow-hidden bg-[#fcfcfd]">
+
+        {/* ── 移动端遮罩 ──────────────────────────────────────── */}
+        {menuOpen && (
+          <div className="fixed inset-0 bg-black/30 z-20 md:hidden" onClick={() => setMenuOpen(false)} />
+        )}
+
+        {/* ── 侧边栏（桌面常驻 + 移动端抽屉）──────────────────── */}
+        <aside className={`
           fixed md:static inset-y-0 left-0 z-30 w-72 border-r border-slate-200 p-6 flex flex-col gap-6 bg-[#fcfcfd]
           transform transition-transform duration-200
-          ${J?"translate-x-0":"-translate-x-full md:translate-x-0"}
-        `},React.createElement("div",{className:"flex items-center gap-3 px-2"},React.createElement("div",{className:"w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-slate-200"},React.createElement("i",{className:"fa-solid fa-rss text-white text-lg"})),React.createElement("div",null,React.createElement("h1",{className:"text-lg font-black tracking-tight leading-none"},"Alpha Radar"),React.createElement("p",{className:"text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1"},"情报引擎 v2.0"))),pe,React.createElement("div",{className:"pt-4 border-t border-slate-100 space-y-3"},React.createElement("div",{className:"bg-slate-50 p-3 rounded-xl border border-slate-100 relative group"},React.createElement("div",{className:"flex justify-between items-center mb-2"},React.createElement("span",{className:"text-[10px] font-bold text-slate-400 uppercase tracking-wider"},"云端同步"),ee&&React.createElement("i",{className:"fa-solid fa-circle-notch fa-spin text-slate-300 text-xs"})),A?React.createElement("div",{className:"flex justify-between items-center gap-2"},React.createElement("div",{className:"bg-white px-2 py-1 flex-1 rounded text-center border border-slate-200"},React.createElement("span",{className:"font-mono text-sm font-bold tracking-[0.2em] text-slate-700"},A)),React.createElement("button",{onClick:()=>{L(""),X(""),localStorage.removeItem("syncCode")},className:"text-[10px] text-slate-400 hover:text-red-500 underline",title:"解除绑定"},"解绑")):React.createElement("div",{className:"space-y-2"},React.createElement("div",{className:"flex gap-1"},React.createElement("input",{type:"text",value:H,onChange:t=>X(t.target.value.toUpperCase()),maxLength:6,placeholder:"输入 6 位码",className:"w-full text-xs font-mono uppercase bg-white border border-slate-200 rounded px-2 py-1 focus:outline-blue-400"}),React.createElement("button",{onClick:ie,className:"bg-slate-200 hover:bg-slate-300 text-slate-600 px-2 py-1 rounded text-xs font-medium transition-colors"},"加载")),React.createElement("button",{onClick:re,className:"w-full text-[11px] text-blue-500 hover:text-blue-600 font-medium py-1 border border-blue-100 bg-blue-50 hover:bg-blue-100 rounded transition-colors text-center"},React.createElement("i",{className:"fa-solid fa-plus mr-1 text-[10px]"}),"新建同步设备"))),D&&React.createElement("div",{className:"flex items-center justify-between px-2 text-xs text-slate-400"},React.createElement("span",null,"数据库"),React.createElement("span",{className:"font-bold text-emerald-500"},D.db?.total?.toLocaleString()," 条")),React.createElement("div",{className:"flex items-center justify-between px-2"},React.createElement("div",{className:"flex flex-col"},React.createElement("span",{className:"text-xs font-bold text-slate-400"},K,"s 后刷新"),Y&&React.createElement("span",{className:"text-[10px] text-emerald-500 font-medium"},Y)),React.createElement("button",{onClick:()=>E(s),className:"p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-black transition-colors"},React.createElement("i",{className:"fa-solid fa-rotate-right"}))))),React.createElement("main",{className:"flex-1 overflow-hidden flex flex-col"},React.createElement("div",{className:"border-b border-slate-100 bg-white px-6 py-3 flex items-center gap-3 shrink-0"},React.createElement("button",{onClick:()=>M(t=>!t),className:"md:hidden p-2 rounded-lg hover:bg-slate-100"},React.createElement("i",{className:"fa-solid fa-bars text-slate-500"})),React.createElement("div",{className:"flex-1 relative max-w-md"},React.createElement("i",{className:"fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-sm"}),React.createElement("input",{ref:W,type:"text",placeholder:"搜索标题、摘要… (Ctrl+K)",value:u,onChange:t=>N(t.target.value),onKeyDown:de,className:"w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-slate-50"}),u&&React.createElement("button",{onClick:Q,className:"absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"},React.createElement("i",{className:"fa-solid fa-xmark"}))),React.createElement("div",{className:"flex gap-1 bg-slate-100 rounded-xl p-1"},[["today","今日"],["week","本周"],["month","本月"],["all","全部"]].map(([t,e])=>React.createElement("button",{key:t,onClick:()=>p(t),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${x===t?"bg-white text-slate-900 shadow-sm":"text-slate-500 hover:text-slate-700"}`},e))),React.createElement("div",{className:"flex gap-1 bg-slate-100 rounded-xl p-1"},React.createElement("button",{onClick:()=>I("feed"),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${v==="feed"?"bg-white text-slate-900 shadow-sm":"text-slate-500"}`},React.createElement("i",{className:"fa-solid fa-list mr-1"}),"列表"),React.createElement("button",{onClick:()=>I("chart"),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${v==="chart"?"bg-white text-slate-900 shadow-sm":"text-slate-500"}`},React.createElement("i",{className:"fa-solid fa-chart-bar mr-1"}),"图表"),React.createElement("button",{onClick:()=>I("trend"),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${v==="trend"?"bg-white text-slate-900 shadow-sm":"text-slate-500"}`},React.createElement("i",{className:"fa-solid fa-chart-line mr-1"}),"趋势"),React.createElement("button",{onClick:()=>I("competitor"),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${v==="competitor"?"bg-white text-slate-900 shadow-sm":"text-slate-500"}`},React.createElement("i",{className:"fa-solid fa-crosshairs mr-1"}),"竞对"),React.createElement("button",{onClick:()=>I("monitor"),className:`px-3 py-1 rounded-lg text-xs font-medium transition-all ${v==="monitor"?"bg-white text-slate-900 shadow-sm":"text-slate-500"}`},React.createElement("i",{className:"fa-solid fa-heart-pulse mr-1"}),"监控")),React.createElement("button",{onClick:()=>F(!0),className:"px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors",title:"导出数据"},React.createElement("i",{className:"fa-solid fa-download mr-1"}),"导出"),React.createElement("button",{onClick:()=>le(t=>!t),className:"p-2 rounded-xl text-sm bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors",title:z?"切换亮色模式":"切换暗色模式"},React.createElement("i",{className:`fa-solid ${z?"fa-sun text-amber-400":"fa-moon"}`}))),m&&React.createElement("div",{className:"px-6 py-2 bg-blue-50 text-xs text-blue-600 border-b border-blue-100 shrink-0"},'搜索 "',React.createElement("strong",null,m),'" — 找到 ',h.length," 条结果",React.createElement("button",{onClick:Q,className:"ml-3 underline"},"清除")),React.createElement("div",{className:"flex-1 overflow-y-auto scrollbar-hide",ref:ne},v==="chart"?React.createElement("div",{className:"p-8"},React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h2",{className:"text-lg font-black mb-1 text-slate-900"},"情报分布图表"),React.createElement("p",{className:"text-xs text-slate-400 mb-4"},"基于当前视图数据 (",h.length," 条)"),React.createElement(StatsChart,{news:h}))):v==="trend"?React.createElement("div",{className:"p-8"},React.createElement("header",{className:"mb-8"},React.createElement("h2",{className:"text-2xl font-black text-slate-900 tracking-tight"},React.createElement("i",{className:"fa-solid fa-chart-line text-blue-500 mr-2"}),"趋势洞察")),React.createElement(InsightsPanel,null),React.createElement("div",{className:"depth-card p-6 rounded-2xl"},React.createElement("h2",{className:"text-lg font-black mb-1 text-slate-900"},"业务热度走势"),React.createElement("p",{className:"text-xs text-slate-400 mb-4"},"各业务分类消息量随时间变化"),React.createElement(TrendChart,{days:7}))):v==="competitor"?React.createElement("div",{className:"p-6 md:p-10"},React.createElement("header",{className:"mb-8"},React.createElement("h2",{className:"text-2xl font-black text-slate-900 tracking-tight"},React.createElement("i",{className:"fa-solid fa-crosshairs text-red-400 mr-2"}),"竞对雷达",React.createElement("span",{className:"ml-3 text-base font-normal text-slate-400"},"按竞争类型分组"))),React.createElement(CompetitorRadar,{news:l})):v==="monitor"?React.createElement(MonitoringPanel,null):React.createElement("div",{className:"p-6 md:p-10"},React.createElement("header",{className:"mb-8"},React.createElement("h2",{className:"text-2xl font-black text-slate-900 tracking-tight"},s==="All"?"全部动态":SOURCES.find(t=>t.id===s)?.label,React.createElement("span",{className:"ml-3 text-base font-normal text-slate-400"},h.length," 条"))),r&&h.length===0?React.createElement("div",{className:"max-w-4xl"},[1,2,3,4,5].map(t=>React.createElement(me,{key:t}))):h.length===0?React.createElement("div",{className:"text-center py-24 text-slate-300 italic font-medium"},"暂无雷达信号"):React.createElement("div",{className:"max-w-4xl flex flex-col gap-4"},(()=>{let t="";const e=["周日","周一","周二","周三","周四","周五","周六"];return h.map(a=>{const f=b.has(a.id),y=C.has(a.id),w=(a.title+(a.content||"")).match(/0x[a-fA-F0-9]{40}/),k=new Date(a.timestamp||Date.now()),B=`${k.getMonth()+1}月${k.getDate()}日, ${e[k.getDay()]}`,xe=`${k.getHours().toString().padStart(2,"0")}:${k.getMinutes().toString().padStart(2,"0")}`,ue=B!==t;return t=B,React.createElement(React.Fragment,{key:a.id},ue&&React.createElement("div",{className:"flex items-center mt-6 mb-4 first:mt-0"},React.createElement("h2",{className:"text-xl font-bold text-slate-800 tracking-tight"},B)),React.createElement("div",{className:"flex gap-4 group relative mb-2"},React.createElement("div",{className:"w-16 shrink-0 flex items-start justify-end pt-1 gap-2"},React.createElement("span",{className:"text-[13px] font-medium text-slate-400 mt-[2px]"},xe),React.createElement("div",{className:"w-2 h-2 rounded-full bg-blue-600 mt-[7px] shrink-0 outline outline-4 outline-[#fcfcfd]"})),React.createElement("div",{onClick:()=>{ce(a.id),window.open(a.url,"_blank")},className:`flex-1 bg-white p-5 rounded-xl border border-slate-150 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] cursor-pointer transition-all hover:shadow-md hover:-translate-y-[1px] ${f?"feed-read":""} ${a.is_important?"border-l-4 border-l-red-500":""} ${h.indexOf(a)===j?"keyboard-focus":""}`},React.createElement("h3",{className:"text-[16px] font-bold leading-relaxed text-slate-900 mb-2"},highlight(a.title,m)),a.detail?React.createElement("p",{className:"text-[14px] text-slate-600 leading-relaxed mb-4"},highlight(a.detail,m)):a.content?React.createElement("p",{className:"text-[14px] text-slate-500 leading-relaxed line-clamp-2 mb-4"},a.content):null,React.createElement("div",{className:"flex justify-between items-end mt-auto pt-2"},React.createElement("div",{className:"flex items-center gap-2 flex-wrap"},React.createElement("span",{className:"text-[11px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-100 font-medium"},a.source),a.alpha_score>0&&React.createElement(ScoreBadge,{score:a.alpha_score}),a.is_important===1&&React.createElement("span",{className:"text-[11px] px-2 py-0.5 rounded-md bg-red-50 text-red-600 font-bold border border-red-100 flex items-center gap-1"},React.createElement("i",{className:"fa-solid fa-star text-[9px]"})," 重要信号"),a.business_category&&React.createElement("span",{className:"text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 font-medium border border-emerald-100 flex items-center gap-1"},React.createElement("i",{className:"fa-solid fa-tag text-[9px]"})," ",a.business_category),w&&React.createElement("button",{onClick:O=>{O.stopPropagation(),navigator.clipboard.writeText(w[0])},className:"text-[11px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-100 transition-colors flex items-center gap-1"},React.createElement("i",{className:"fa-regular fa-copy"})," CA")),React.createElement("div",{className:"flex gap-3 text-slate-300"},React.createElement("button",{onClick:O=>V(O,a.id),className:`transition-colors text-lg ${y?"text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.5)]":"hover:text-amber-400"}`},React.createElement("i",{className:y?"fa-solid fa-star":"fa-regular fa-star"})),React.createElement("button",{onClick:O=>{O.stopPropagation(),window.open(a.url,"_blank")},className:"hover:text-blue-500 transition-colors text-lg"},React.createElement("i",{className:"fa-solid fa-arrow-up-right-from-square"})))))))})})())))),React.createElement("aside",{className:"w-72 border-l border-slate-100 p-8 hidden xl:flex flex-col gap-8 bg-white shrink-0 overflow-y-auto scrollbar-hide"},React.createElement(SourceHealthPanel,null),React.createElement("div",null,React.createElement("h3",{className:"text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4"},"系统状态"),React.createElement("div",{className:"space-y-3"},React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-xs text-slate-500"},"数据节点"),React.createElement("span",{className:"text-xs font-black"},SOURCES.length-2)),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-xs text-slate-500"},"总条目"),React.createElement("span",{className:"text-xs font-black"},D?.db?.total?.toLocaleString()||$.All)),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-xs text-slate-500"},"重要信号"),React.createElement("span",{className:"text-xs font-black text-red-500"},$.Important||0)),React.createElement("div",{className:"flex justify-between"},React.createElement("span",{className:"text-xs text-slate-500"},"运行时长"),React.createElement("span",{className:"text-xs font-black text-emerald-500"},D?`${Math.floor(D.uptime/3600)}h`:"—")),React.createElement("div",{className:"flex justify-between items-center"},React.createElement("span",{className:"text-xs text-slate-500"},"数据库"),React.createElement("span",{className:"flex items-center gap-1.5 text-xs font-black text-emerald-500"},React.createElement("span",{className:"w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"}),"在线")))),React.createElement("div",null,React.createElement("h3",{className:"text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4"},"当前视图"),React.createElement("div",{className:"space-y-2 text-xs text-slate-400"},React.createElement("p",null,"• 显示: ",h.length," / ",n.length," 条"),React.createElement("p",null,"• 时间: ",x==="today"?"今日":x==="week"?"本周":x==="month"?"本月":"全部"),m&&React.createElement("p",{className:"text-blue-500"},'• 搜索: "',m,'"'),React.createElement("p",null,"• 刷新: ",K,"s 后"))),React.createElement("div",null,React.createElement("h3",{className:"text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4"},"分类统计"),React.createElement("div",{className:"space-y-1.5"},useMemo(()=>{const t={};return h.forEach(e=>{const a=e.business_category||"其他";t[a]=(t[a]||0)+1}),Object.entries(t).sort((e,a)=>a[1]-e[1]).slice(0,8).map(([e,a])=>React.createElement("div",{key:e,className:"flex justify-between"},React.createElement("span",{className:"text-xs text-slate-500 truncate max-w-[140px]"},e),React.createElement("span",{className:"text-xs font-bold text-slate-700"},a)))},[h]))),React.createElement("div",{className:"py-3 border-t border-slate-50"},React.createElement("h3",{className:"text-[10px] font-black text-slate-400 uppercase tracking-[.15em] mb-2"},"快捷键"),React.createElement("div",{className:"grid grid-cols-2 gap-1 text-[10px] text-slate-400"},React.createElement("span",null,React.createElement("kbd",{className:"bg-slate-100 px-1 rounded text-slate-500"},"J")," 下一条"),React.createElement("span",null,React.createElement("kbd",{className:"bg-slate-100 px-1 rounded text-slate-500"},"K")," 上一条"),React.createElement("span",null,React.createElement("kbd",{className:"bg-slate-100 px-1 rounded text-slate-500"},"S")," 收藏"),React.createElement("span",null,React.createElement("kbd",{className:"bg-slate-100 px-1 rounded text-slate-500"},"R")," 刷新"))),React.createElement("div",{className:"mt-auto py-4 border-t border-slate-50 text-center"},React.createElement("span",{className:"text-[10px] font-black text-slate-300 uppercase tracking-[.3em]"},"Alpha Radar v2.0"))),se&&React.createElement(ExportModal,{news:l,onClose:()=>F(!1)}))}ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
+          ${menuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+        `}>
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center shadow-lg shadow-slate-200">
+              <i className="fa-solid fa-rss text-white text-lg"/>
+            </div>
+            <div>
+              <h1 className="text-lg font-black tracking-tight leading-none">Web3行业动态</h1>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">行业情报中枢</p>
+            </div>
+          </div>
+
+          {sidebarNav}
+
+          {/* 底部状态 */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            {/* 云同步挂件 */}
+            <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 relative group">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">云端同步</span>
+                {isSyncing && <i className="fa-solid fa-circle-notch fa-spin text-slate-300 text-xs"></i>}
+              </div>
+              
+              {syncCode ? (
+                <div className="flex justify-between items-center gap-2">
+                  <div className="bg-white px-2 py-1 flex-1 rounded text-center border border-slate-200">
+                    <span className="font-mono text-sm font-bold tracking-[0.2em] text-slate-700">{syncCode}</span>
+                  </div>
+                  <button onClick={() => {setSyncCode(''); setSyncInput(''); localStorage.removeItem('syncCode');}} className="text-[10px] text-slate-400 hover:text-red-500 underline" title="解除绑定">解绑</button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-1">
+                    <input type="text" value={syncInput} onChange={e=>setSyncInput(e.target.value.toUpperCase())} maxLength={6} placeholder="输入 6 位码" className="w-full text-xs font-mono uppercase bg-white border border-slate-200 rounded px-2 py-1 focus:outline-blue-400" />
+                    <button onClick={loadFromSync} className="bg-slate-200 hover:bg-slate-300 text-slate-600 px-2 py-1 rounded text-xs font-medium transition-colors">加载</button>
+                  </div>
+                  <button onClick={generateSyncCode} className="w-full text-[11px] text-blue-500 hover:text-blue-600 font-medium py-1 border border-blue-100 bg-blue-50 hover:bg-blue-100 rounded transition-colors text-center">
+                    <i className="fa-solid fa-plus mr-1 text-[10px]"></i>新建同步设备
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {health && (
+              <div className="flex items-center justify-between px-2 text-xs text-slate-400">
+                <span>数据库</span>
+                <span className="font-bold text-emerald-500">{health.db?.total?.toLocaleString()} 条</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-2">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-400">{countdown}s 后刷新</span>
+                {lastUpdateLabel && <span className="text-[10px] text-emerald-500 font-medium">{lastUpdateLabel}</span>}
+              </div>
+              <button onClick={() => fetchNews(activeFilter)}
+                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-black transition-colors">
+                <i className="fa-solid fa-rotate-right"/>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── 主区域 ───────────────────────────────────────────── */}
+        <main className="flex-1 overflow-hidden flex flex-col">
+
+          {/* 顶部工具栏 */}
+          <div className="border-b border-slate-100 bg-white px-6 py-3 flex items-center gap-3 shrink-0">
+            {/* 移动端菜单按钮 */}
+            <button onClick={() => setMenuOpen(v => !v)} className="md:hidden p-2 rounded-lg hover:bg-slate-100">
+              <i className="fa-solid fa-bars text-slate-500"/>
+            </button>
+
+            {/* 搜索框 */}
+            <div className="flex-1 relative max-w-md">
+              <i className="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 text-sm"/>
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="搜索标题、摘要… (Ctrl+K)"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                onKeyDown={handleSearch}
+                className="w-full pl-9 pr-8 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 bg-slate-50"
+              />
+              {searchInput && (
+                <button onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+                  <i className="fa-solid fa-xmark"/>
+                </button>
+              )}
+            </div>
+
+            {/* 时间范围 */}
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+              {[['today','今日'],['week','本周'],['month','本月'],['all','全部']].map(([val,lbl]) => (
+                <button key={val} onClick={() => setTimeRange(val)}
+                  className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                    timeRange === val ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+
+            {/* 视图切换 */}
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+              <button onClick={() => setViewMode('feed')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${viewMode==='feed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <i className="fa-solid fa-list mr-1"/>列表
+              </button>
+              <button onClick={() => setViewMode('chart')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${viewMode==='chart' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <i className="fa-solid fa-chart-bar mr-1"/>图表
+              </button>
+              <button onClick={() => setViewMode('trend')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${viewMode==='trend' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <i className="fa-solid fa-chart-line mr-1"/>趋势
+              </button>
+              <button onClick={() => setViewMode('competitor')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${viewMode==='competitor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <i className="fa-solid fa-crosshairs mr-1"/>竞对
+              </button>
+              <button onClick={() => setViewMode('monitor')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${viewMode==='monitor' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <i className="fa-solid fa-heart-pulse mr-1"/>监控
+              </button>
+            </div>
+
+            {/* 导出按钮 */}
+            <button onClick={() => setShowExport(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+              title="导出数据">
+              <i className="fa-solid fa-download mr-1"/>导出
+            </button>
+
+            {/* Dark Mode Toggle */}
+            <button onClick={() => setDark(d => !d)}
+              className="p-2 rounded-xl text-sm bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+              title={dark ? '切换亮色模式' : '切换暗色模式'}>
+              <i className={`fa-solid ${dark ? 'fa-sun text-amber-400' : 'fa-moon'}`}/>
+            </button>
+          </div>
+
+          {/* 搜索结果提示 */}
+          {search && (
+            <div className="px-6 py-2 bg-blue-50 text-xs text-blue-600 border-b border-blue-100 shrink-0">
+              搜索 "<strong>{search}</strong>" — 找到 {filteredNews.length} 条结果
+              <button onClick={clearSearch} className="ml-3 underline">清除</button>
+            </div>
+          )}
+
+          {/* 内容区 */}
+          <div className="flex-1 overflow-y-auto scrollbar-hide" ref={feedContainerRef}>
+            {viewMode === 'chart' ? (
+              <div className="p-8">
+                <div className="depth-card p-6 rounded-2xl">
+                  <h2 className="text-lg font-black mb-1 text-slate-900">情报分布图表</h2>
+                  <p className="text-xs text-slate-400 mb-4">
+                    基于当前视图数据 ({filteredNews.length} 条)
+                  </p>
+                  <StatsChart news={filteredNews} />
+                </div>
+              </div>
+            ) : viewMode === 'trend' ? (
+              <div className="p-8">
+                <header className="mb-8">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <i className="fa-solid fa-chart-line text-blue-500 mr-2"></i>
+                    趋势洞察
+                  </h2>
+                </header>
+                
+                {/* 行业记忆看板 */}
+                <InsightsPanel />
+
+                <div className="depth-card p-6 rounded-2xl">
+                  <h2 className="text-lg font-black mb-1 text-slate-900">业务热度走势</h2>
+                  <p className="text-xs text-slate-400 mb-4">
+                    各业务分类消息量随时间变化
+                  </p>
+                  <TrendChart days={7} />
+                </div>
+              </div>
+            ) : viewMode === 'competitor' ? (
+              <div className="p-6 md:p-10">
+                <header className="mb-8">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    <i className="fa-solid fa-crosshairs text-red-400 mr-2"></i>
+                    竞对雷达
+                    <span className="ml-3 text-base font-normal text-slate-400">
+                      按竞争类型分组
+                    </span>
+                  </h2>
+                </header>
+                <CompetitorRadar news={allNews} />
+              </div>
+            ) : viewMode === 'monitor' ? (
+              <MonitoringPanel />
+            ) : (
+              <div className="p-6 md:p-10">
+                <header className="mb-8">
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    {activeFilter === 'All' ? '全部动态' : SOURCES.find(s=>s.id===activeFilter)?.label}
+                    <span className="ml-3 text-base font-normal text-slate-400">
+                      {filteredNews.length} 条
+                    </span>
+                  </h2>
+                </header>
+
+                {loading && filteredNews.length === 0 ? (
+                  <div className="max-w-4xl">
+                    {[1,2,3,4,5].map(i => <SkeletonCard key={i}/>)}
+                  </div>
+                ) : filteredNews.length === 0 ? (
+                  <div className="text-center py-24 text-slate-300 italic font-medium">暂无雷达信号</div>
+                ) : (
+                  <div className="max-w-4xl flex flex-col gap-4">
+                    {(() => {
+                      let prevDateStr = '';
+                      const WEEKS = ['周日','周一','周二','周三','周四','周五','周六'];
+                      
+                      return filteredNews.map(item => {
+                        const isRead   = readIds.has(item.id);
+                        const isBookmarked = bookmarks.has(item.id);
+                        const caMatch  = (item.title + (item.content||'')).match(/0x[a-fA-F0-9]{40}/);
+                        
+                        // Date parsing
+                        const d = new Date(item.timestamp || Date.now());
+                        const dateStr = `${d.getMonth()+1}月${d.getDate()}日, ${WEEKS[d.getDay()]}`;
+                        const timeStr = `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+                        
+                        const showHeader = dateStr !== prevDateStr;
+                        prevDateStr = dateStr;
+
+                        return (
+                          <React.Fragment key={item.id}>
+                            {showHeader && (
+                              <div className="flex items-center mt-6 mb-4 first:mt-0">
+                                <h2 className="text-xl font-bold text-slate-800 tracking-tight">{dateStr}</h2>
+                              </div>
+                            )}
+
+                            <div className="flex gap-4 group relative mb-2">
+                              {/* 时间轴左侧 */}
+                              <div className="w-16 shrink-0 flex items-start justify-end pt-1 gap-2">
+                                <span className="text-[13px] font-medium text-slate-400 mt-[2px]">{timeStr}</span>
+                                <div className="w-2 h-2 rounded-full bg-blue-600 mt-[7px] shrink-0 outline outline-4 outline-[#fcfcfd]" />
+                              </div>
+
+                              {/* 内容卡片 */}
+                              <div 
+                                onClick={() => { markAsRead(item.id); window.open(item.url,'_blank'); }}
+                                className={`flex-1 bg-white p-5 rounded-xl border border-slate-150 shadow-[0_2px_8px_-4px_rgba(0,0,0,0.05)] cursor-pointer transition-all hover:shadow-md hover:-translate-y-[1px] ${isRead ? 'feed-read':''} ${item.is_important ? 'border-l-4 border-l-red-500':''} ${filteredNews.indexOf(item) === focusIdx ? 'keyboard-focus' : ''}`}>
+                                
+                                {/* 标题 */}
+                                <h3 className="text-[16px] font-bold leading-relaxed text-slate-900 mb-2">
+                                  {highlight(item.title, search)}
+                                </h3>
+
+                                {/* 内容 / 摘要 */}
+                                {item.detail ? (
+                                  <p className="text-[14px] text-slate-600 leading-relaxed mb-4">
+                                    {highlight(item.detail, search)}
+                                  </p>
+                                ) : item.content ? (
+                                  <p className="text-[14px] text-slate-500 leading-relaxed line-clamp-2 mb-4">
+                                    {item.content}
+                                  </p>
+                                ) : null}
+
+                                {/* 底部标签 & Action */}
+                                <div className="flex justify-between items-end mt-auto pt-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-50 text-slate-500 border border-slate-100 font-medium">
+                                      {item.source}
+                                    </span>
+                                    {item.alpha_score > 0 && <ScoreBadge score={item.alpha_score} />}
+                                    {item.is_important === 1 && <span className="text-[11px] px-2 py-0.5 rounded-md bg-red-50 text-red-600 font-bold border border-red-100 flex items-center gap-1"><i className="fa-solid fa-star text-[9px]"></i> 重要信号</span>}
+                                    {item.business_category && (
+                                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-600 font-medium border border-emerald-100 flex items-center gap-1">
+                                        <i className="fa-solid fa-tag text-[9px]"></i> {item.business_category}
+                                      </span>
+                                    )}
+                                    {caMatch && (
+                                      <button onClick={e=>{e.stopPropagation();navigator.clipboard.writeText(caMatch[0])}}
+                                        className="text-[11px] font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-100 transition-colors flex items-center gap-1">
+                                        <i className="fa-regular fa-copy"></i> CA
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-3 text-slate-300">
+                                    <button onClick={(e) => toggleBookmark(e, item.id)} className={`transition-colors text-lg ${isBookmarked ? 'text-amber-400 drop-shadow-[0_0_2px_rgba(251,191,36,0.5)]' : 'hover:text-amber-400'}`}>
+                                      <i className={isBookmarked ? "fa-solid fa-star" : "fa-regular fa-star"}></i>
+                                    </button>
+                                    <button onClick={(e) => {e.stopPropagation(); window.open(item.url, '_blank')}} className="hover:text-blue-500 transition-colors text-lg"><i className="fa-solid fa-arrow-up-right-from-square"></i></button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </React.Fragment>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
+
+        {/* ── 右侧信息栏（仅桌面大屏）─────────────────────────── */}
+        <aside className="w-72 border-l border-slate-100 p-8 hidden xl:flex flex-col gap-8 bg-white shrink-0 overflow-y-auto scrollbar-hide">
+          {/* 数据源健康看板 */}
+          <SourceHealthPanel />
+
+          <div>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4">系统状态</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">数据节点</span>
+                <span className="text-xs font-black">{SOURCES.length - 2}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">总条目</span>
+                <span className="text-xs font-black">{health?.db?.total?.toLocaleString() || counts.All}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">重要信号</span>
+                <span className="text-xs font-black text-red-500">{counts.Important || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-xs text-slate-500">运行时长</span>
+                <span className="text-xs font-black text-emerald-500">
+                  {health ? `${Math.floor(health.uptime/3600)}h` : '—'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500">数据库</span>
+                <span className="flex items-center gap-1.5 text-xs font-black text-emerald-500">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"/>
+                  在线
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4">当前视图</h3>
+            <div className="space-y-2 text-xs text-slate-400">
+              <p>• 显示: {filteredNews.length} / {displayNews.length} 条</p>
+              <p>• 时间: {timeRange === 'today' ? '今日' : timeRange === 'week' ? '本周' : timeRange === 'month' ? '本月' : '全部'}</p>
+              {search && <p className="text-blue-500">• 搜索: "{search}"</p>}
+              <p>• 刷新: {countdown}s 后</p>
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[.2em] mb-4">分类统计</h3>
+            <div className="space-y-1.5">
+              {useMemo(() => {
+                const m = {};
+                filteredNews.forEach(n => { const c = n.business_category||'其他'; m[c]=(m[c]||0)+1; });
+                return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([cat,cnt]) => (
+                  <div key={cat} className="flex justify-between">
+                    <span className="text-xs text-slate-500 truncate max-w-[140px]">{cat}</span>
+                    <span className="text-xs font-bold text-slate-700">{cnt}</span>
+                  </div>
+                ));
+              }, [filteredNews])}
+            </div>
+          </div>
+
+          {/* 快捷键提示 */}
+          <div className="py-3 border-t border-slate-50">
+            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[.15em] mb-2">快捷键</h3>
+            <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-400">
+              <span><kbd className="bg-slate-100 px-1 rounded text-slate-500">J</kbd> 下一条</span>
+              <span><kbd className="bg-slate-100 px-1 rounded text-slate-500">K</kbd> 上一条</span>
+              <span><kbd className="bg-slate-100 px-1 rounded text-slate-500">S</kbd> 收藏</span>
+              <span><kbd className="bg-slate-100 px-1 rounded text-slate-500">R</kbd> 刷新</span>
+            </div>
+          </div>
+
+          <div className="mt-auto py-4 border-t border-slate-50 text-center">
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-[.3em]">Web3行业动态</span>
+          </div>
+        </aside>
+
+        {/* Export Modal */}
+        {showExport && <ExportModal news={allNews} onClose={() => setShowExport(false)} />}
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+
