@@ -17,13 +17,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Rebuild native modules
-        run: npm rebuild better-sqlite3
+        env:
+          npm_config_build_from_source: 'true'
 
       - name: Run Weekly Report
         run: node run_weekly_report.js
