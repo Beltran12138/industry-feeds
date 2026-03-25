@@ -82,8 +82,13 @@ async function sendToWeCom(item, options = {}) {
       },
     };
 
-    await axios.post(WECOM_WEBHOOK_URL, payload);
-    console.log(`[WeCom] Sent (Card): ${item.title}`);
+    const res = await axios.post(WECOM_WEBHOOK_URL, payload);
+    const errcode = res.data?.errcode;
+    if (errcode !== 0) {
+      console.error(`[WeCom] Card rejected by WeCom API: errcode=${errcode}, errmsg=${res.data?.errmsg}, title=${item.title}`);
+    } else {
+      console.log(`[WeCom] Sent (Card): ${item.title}`);
+    }
   } catch (err) {
     console.error('[WeCom Error]:', err.response?.data || err.message);
   }
@@ -127,11 +132,16 @@ async function sendReportToWeCom(reportContent, reportType = '日报') {
     }
 
     try {
-      await axios.post(WECOM_WEBHOOK_URL, {
+      const res = await axios.post(WECOM_WEBHOOK_URL, {
         msgtype: 'markdown',
         markdown: { content },
       });
-      console.log(`[WeCom] ${reportType} segment ${i + 1}/${segments.length} sent.`);
+      const errcode = res.data?.errcode;
+      if (errcode !== 0) {
+        console.error(`[WeCom] ${reportType} segment ${i + 1} rejected by WeCom API: errcode=${errcode}, errmsg=${res.data?.errmsg}`);
+      } else {
+        console.log(`[WeCom] ${reportType} segment ${i + 1}/${segments.length} sent.`);
+      }
 
       // 多段之间间隔 1 秒，避免被限流
       if (i < segments.length - 1) {
